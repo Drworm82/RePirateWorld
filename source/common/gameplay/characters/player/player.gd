@@ -109,7 +109,6 @@ func die(killer: Character) -> void:
 		# means an unattributed death (environment, or the source already freed).
 		var killed_by: String = killer.display_name if is_instance_valid(killer) else ""
 		WorldServer.curr.data_push.rpc_id(peer_id, &"player.died", {
-			"respawn_in": RESPAWN_DELAY,
 			"spawn": spawn_position,
 			"killed_by": killed_by,
 		})
@@ -117,10 +116,8 @@ func die(killer: Character) -> void:
 	# The player remains dead until the client explicitly requests a respawn.
 	# The Death Screen uses this same map spawn as the only available PoC respawn point.
 	# No automatic timer or inventory kit is applied here.
-	if exile_after_respawn:
-		# The anti-camp state is intentionally consumed only when the player actually
-		# respawns, not while they remain on the Death Screen.
-		pass
+	# Anti-camp relocation is deferred until the respawn system supports a validated
+	# alternate destination; it is intentionally not triggered while the player waits.
 
 
 ## Explicit respawn requested from the Death Screen. PoC currently exposes only the

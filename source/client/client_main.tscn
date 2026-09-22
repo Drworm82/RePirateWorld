@@ -2,8 +2,12 @@
 
 [ext_resource type="Script" uid="uid://bfybdk1kgy125" path="res://source/client/client_main.gd" id="1_hoyng"]
 [ext_resource type="PackedScene" uid="uid://5wv1gfwppcnf" path="res://source/client/gateway/gateway.tscn" id="4_s85jl"]
+[ext_resource type="Script" path="res://source/client/pirateworld/death_bag_poc.gd" id="5_death_bag"]
 
 [node name="ClientMain" type="Node"]
 script = ExtResource("1_hoyng")
 
 [node name="Gateway" parent="." instance=ExtResource("4_s85jl")]
+
+[node name="DeathBagPoc" type="Node" parent="."]
+script = ExtResource("5_death_bag")

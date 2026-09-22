@@ -116,8 +116,9 @@ func open(peer_id, instance, bag_id):
     if player.global_position.distance_to(bag.position) > PICKUP_DISTANCE:
         return {"ok": false, "reason": "too_far"}
 
-    if not _claim_lock(bag_id, peer_id):
-        return {"ok": false, "reason": "in_use"}
+    if not _owns_lock(bag_id, peer_id):
+        if not _claim_lock(bag_id, peer_id):
+            return {"ok": false, "reason": "in_use"}
 
     return {
         "ok": true,
@@ -146,8 +147,9 @@ func open_sunk(peer_id, instance, bag_id: int) -> Dictionary:
         return {"ok": false, "reason": "not_sunk"}
     if player.global_position.distance_to(bag.position) > PICKUP_DISTANCE:
         return {"ok": false, "reason": "too_far"}
-    if not _claim_lock(bag_id, peer_id, "sunk"):
-        return {"ok": false, "reason": "in_use"}
+    if not _owns_lock(bag_id, peer_id):
+        if not _claim_lock(bag_id, peer_id, "sunk"):
+            return {"ok": false, "reason": "in_use"}
 
     return {
         "ok": true,

@@ -91,43 +91,126 @@ func _on_bag_remove(payload: Dictionary) -> void:
 
 
 func _try_pickup(instance: InstanceClient) -> void:
-    if instance.local_player == null:
-        return
-    var nearest_id: int = 0
-    var nearest_distance: float = PICKUP_RANGE + 0.01
-    for bag_id: int in _bags:
-        var bag: Node2D = _bags[bag_id]
-        if not is_instance_valid(bag):
-            continue
-        var distance: float = instance.local_player.global_position.distance_to(bag.global_position)
-        if distance <= nearest_distance:
-            nearest_distance = distance
-            nearest_id = bag_id
-    if nearest_id <= 0:
-        Toaster.toast("No hay una Death Bag cerca.")
-        return
-    var result: Array = await Client.request_data_await(&"death_bag.open", {"bag_id": nearest_id}, instance.name)
-    if result.size() < 2 or result[1] != OK:
-        return
-    var payload: Dictionary = result[0]
-    if not bool(payload.get("ok", false)):
-        match str(payload.get("reason", "")):
-            "in_use": Toaster.toast("La mochila está siendo saqueada.")
-            "too_far": Toaster.toast("La mochila está demasiado lejos.")
-            _: Toaster.toast("No se pudo abrir la mochila.")
-        return
-    _opened_bag_id = nearest_id
-    var contents: Dictionary = payload.get("contents", {})
-    if contents.is_empty():
-        Toaster.toast("La mochila está vacía.")
-        return
-    var lines: Array[String] = []
-    for slot_uid in contents:
-        var slot = contents[slot_uid]
-        if slot is Dictionary:
-            lines.append("%s: ID %d x%d" % [str(slot_uid), int(slot.get("id", 0)), int(slot.get("a", 0))])
-    Toaster.toast("Mochila de %s | %s" % [str(payload.get("owner_name", "Desconocido")), " | ".join(lines)])
-    Toaster.toast("PoC-02: F abre el contenido; loot selectivo/UI detallada será el siguiente paso.")
+	if instance.local_player == null:
+		return
+	var nearest_id: int = 0
+	var nearest_distance: float = PICKUP_RANGE + 0.01
+	for bag_id: int in _bags:
+		var bag: Node2D = _bags[bag_id]
+		if not is_instance_valid(bag):
+			continue
+		var distance: float = instance.local_player.global_position.distance_to(bag.global_position)
+		if distance <= nearest_distance:
+			nearest_distance = distance
+			nearest_id = bag_id
+	if nearest_id <= 0:
+		Toaster.toast("No hay una Death Bag cerca.")
+		return
+	var result: Array = await Client.request_data_await(&"death_bag.open", {"bag_id": nearest_id}, instance.name)
+	if result.size() < 2 or result[1] != OK:
+		return
+	var payload: Dictionary = result[0]
+	if not bool(payload.get("ok", false)):
+		match str(payload.get("reason", "")):
+			"in_use": Toaster.toast("La mochila está siendo saqueada.")
+			"too_far": Toaster.toast("La mochila está demasiado lejos.")
+			_: Toaster.toast("No se pudo abrir la mochila.")
+		return
+	_open_loot_window(instance, payload)
+
+
+func _open_loot_window(instance: InstanceClient, payload: Dictionary) -> void:
+	_close_loot_window()
+	_opened_bag_id = int(payload.get("bag_id", 0))
+	var window := Window.new()
+	window.name = "DeathBagLootWindow"
+	window.title = "Mochila de %s" % str(payload.get("owner_name", "Desconocido"))
+	window.size = Vector2i(360, 420)
+	window.position = Vector2i(120, 120)
+	window.close_requested.connect(_close_loot_window)
+	var root := VBoxContainer.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 8)
+	window.add_child(root)
+
+	var title := Label.new()
+	title.text = window.title
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(title)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 300)
+	root.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.name = "LootList"
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+
+	var contents: Dictionary = payload.get("contents", {})
+	for slot_uid in contents:
+		var slot = contents[slot_uid]
+		if not slot is Dictionary:
+			continue
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = "ID %d × %d" % [int(slot.get("id", 0)), int(slot.get("a", 0))]
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var take := Button.new()
+		take.text = "Tomar"
+		take.pressed.connect(_loot_slot.bind(instance.name, _opened_bag_id, str(slot_uid), window))
+		row.add_child(take)
+		list.add_child(row)
+
+	var actions := HBoxContainer.new()
+	root.add_child(actions)
+	var loot_all := Button.new()
+	loot_all.text = "LOOT ALL"
+	loot_all.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	loot_all.pressed.connect(_loot_all.bind(instance.name, _opened_bag_id, window))
+	actions.add_child(loot_all)
+	var close := Button.new()
+	close.text = "Cerrar"
+	close.pressed.connect(_close_loot_window)
+	actions.add_child(close)
+
+	add_child(window)
+	window.popup_centered()
+
+
+func _loot_slot(instance_name: String, bag_id: int, slot_uid: String, window: Window) -> void:
+	var result: Array = await Client.request_data_await(&"death_bag.loot", {"bag_id": bag_id, "slot_uid": slot_uid}, instance_name)
+	if result.size() < 2 or result[1] != OK:
+		return
+	var payload: Dictionary = result[0]
+	if bool(payload.get("ok", false)):
+		if bool(payload.get("contents", {}).is_empty()):
+			_close_loot_window()
+		else:
+			_close_loot_window()
+			var refreshed: Array = await Client.request_data_await(&"death_bag.open", {"bag_id": bag_id}, instance_name)
+			if refreshed.size() >= 2 and refreshed[1] == OK and bool(refreshed[0].get("ok", false)):
+				_open_loot_window(InstanceClient.current, refreshed[0])
+	else:
+		Toaster.toast("No se pudo tomar ese objeto.")
+
+
+func _loot_all(instance_name: String, bag_id: int, window: Window) -> void:
+	var result: Array = await Client.request_data_await(&"death_bag.loot_all", {"bag_id": bag_id}, instance_name)
+	if result.size() < 2 or result[1] != OK:
+		return
+	if bool(result[0].get("ok", false)):
+		_close_loot_window()
+		Toaster.toast("Loot All completado.")
+	else:
+		Toaster.toast("No se pudo ejecutar Loot All.")
+
+
+func _close_loot_window() -> void:
+	_opened_bag_id = 0
+	var window := get_node_or_null("DeathBagLootWindow")
+	if window != null:
+		window.queue_free()
 
 
 func _clear_bags() -> void:

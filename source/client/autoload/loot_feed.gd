@@ -47,12 +47,12 @@ func add_item(item_id: int, amount: int, fallback_name: String = "") -> void:
 	# Same item already showing: bump the count, pulse, keep it alive longer.
 	if _active.has(item_id):
 		var entry: Dictionary = _active[item_id]
-		var row: PanelContainer = entry.get("row")
-		if is_instance_valid(row):
+		var active_row: PanelContainer = entry.get("row")
+		if is_instance_valid(active_row):
 			entry["count"] = int(entry["count"]) + amount
 			(entry["label"] as Label).text = "%s ×%d" % [str(entry["name"]), int(entry["count"])]
-			_pulse(row)
-			_restart_dwell(row)
+			_pulse(active_row)
+			_restart_dwell(active_row)
 			return
 		_active.erase(item_id) # freed — build fresh below
 

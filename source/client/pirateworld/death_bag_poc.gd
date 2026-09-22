@@ -5,6 +5,7 @@ extends Node
 const BAG_ICON_PATH: String = "res://assets/sprites/items/icons/Icon271.png"
 const PICKUP_ACTION: StringName = &"player_interact"
 const PICKUP_RANGE: float = 96.0
+const LOOT_ICON_SIZE: Vector2 = Vector2(44, 44)
 
 var _bags: Dictionary[int, Node2D] = {}
 var _instance_name: String = ""
@@ -292,25 +293,30 @@ func _open_sunk_loot_window(instance: InstanceClient, payload: Dictionary) -> vo
 
 func _make_loot_row(slot_uid: Variant, slot: Dictionary, take_callback: Callable) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0, 56)
+	row.custom_minimum_size = Vector2(0, 60)
 
-	var icon_host := TextureRect.new()
-	icon_host.custom_minimum_size = Vector2(48, 48)
-	icon_host.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon_host.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var icon_panel := PanelContainer.new()
+	icon_panel.custom_minimum_size = LOOT_ICON_SIZE
+	var icon := TextureRect.new()
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var item_id := int(slot.get("id", 0))
 	var item: Item = ContentRegistryHub.load_by_id(&"items", item_id) as Item
 	if item != null:
-		icon_host.texture = item.item_icon
-	row.add_child(icon_host)
+		icon.texture = item.item_icon
+	icon_panel.add_child(icon)
+	row.add_child(icon_panel)
 
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.add_theme_constant_override("separation", 0)
+
 	var name := Label.new()
 	name.text = str(item.item_name) if item != null else "Objeto #%d" % item_id
 	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	details.add_child(name)
+
 	var amount := Label.new()
 	amount.text = "Cantidad: %d" % int(slot.get("a", 0))
 	details.add_child(amount)
@@ -318,7 +324,7 @@ func _make_loot_row(slot_uid: Variant, slot: Dictionary, take_callback: Callable
 
 	var take := Button.new()
 	take.text = "Tomar"
-	take.custom_minimum_size = Vector2(72, 44)
+	take.custom_minimum_size = Vector2(76, 44)
 	take.pressed.connect(func() -> void:
 		take_callback.call(str(slot_uid))
 	)

@@ -17,7 +17,7 @@ func spawn_from_player(instance, player) -> Dictionary:
 \tif instance == null or player == null or player.player_resource == null:
 \t\treturn {"ok": false, "reason": "invalid_player"}
 
-\tvar contents: Dictionary = Inventory.normalize(player.player_resource.inventory).duplicate(true)
+\tvar contents: Dictionary = player.player_resource.inventory.duplicate(true)
 \tif contents.is_empty():
 \t\treturn {"ok": false, "reason": "empty_inventory"}
 
@@ -104,7 +104,7 @@ func pickup(peer_id: int, instance, bag_id: int) -> Dictionary:
 \t\tvar item_id: int = int(slot.get("id", 0))
 \t\tvar amount: int = int(slot.get("a", 0))
 \t\tif item_id > 0 and amount > 0:
-\t\t\tInventory.add_item(player.player_resource.inventory, item_id, amount)
+\t\t\t_add_item(player.player_resource.inventory, item_id, amount)
 
 \tdb.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
 \tworld_server.database.save_player(player.player_resource)
@@ -120,4 +120,15 @@ func _broadcast(instance, type: StringName, payload: Dictionary) -> void:
 \tif instance == null:
 \t\treturn
 \tfor peer_id: int in instance.connected_peers:
-\t\tWorldServer.curr.data_push.rpc_id(peer_id, type, payload)
+\t\tworld_server.data_push.rpc_id(peer_id, type, payload)
+
+
+func _add_item(inventory: Dictionary, item_id: int, amount: int) -> void:
+	for slot_uid in inventory:
+		var slot = inventory[slot_uid]
+		if slot is Dictionary and int(slot.get("id", 0)) == item_id:
+			slot["a"] = int(slot.get("a", 0)) + amount
+			inventory[slot_uid] = slot
+			return
+	var new_slot_id: String = "death_bag_" + str(Time.get_ticks_usec())
+	inventory[new_slot_id] = {"id": item_id, "a": amount}

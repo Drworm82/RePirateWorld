@@ -644,10 +644,10 @@ func _add_item(inventory: Dictionary, item_id: int, amount: int) -> int:
         var current := int(slot.get("a", 0))
         if stack_limit <= 1:
             continue
-        var room := amount if stack_limit <= 0 else max(0, stack_limit - current)
+        var room: int = amount if stack_limit <= 0 else maxi(0, stack_limit - current)
         if room <= 0:
             continue
-        var moved := min(remaining, room)
+        var moved: int = mini(remaining, room)
         slot["a"] = current + moved
         inventory[slot_uid] = slot
         remaining -= moved
@@ -656,7 +656,7 @@ func _add_item(inventory: Dictionary, item_id: int, amount: int) -> int:
 
     while remaining > 0 and inventory.size() < INVENTORY_SLOT_CAPACITY:
         var new_slot_id := "death_bag_" + str(Time.get_ticks_usec()) + "_" + str(inventory.size())
-        var moved := remaining if stack_limit <= 1 or stack_limit <= 0 else min(remaining, stack_limit)
+        var moved: int = remaining if stack_limit <= 1 or stack_limit <= 0 else mini(remaining, stack_limit)
         inventory[new_slot_id] = {
             "id": item_id,
             "a": moved,

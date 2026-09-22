@@ -3,7 +3,7 @@ extends RefCounted
 ## PirateWorld PoC-01: persistent physical loot.
 ## Server-authoritative storage and pickup validation.
 
-const PICKUP_DISTANCE: float = 96.0
+const PICKUP_DISTANCE = 96.0
 
 var db
 var world_server
@@ -60,7 +60,7 @@ func list_for_instance(instance_name: String) -> Array:
 \t\t"SELECT bag_id, instance_name, x, y, owner_id, contents_json, created_at_ms FROM death_bags WHERE instance_name=? ORDER BY bag_id ASC;",
 \t\t[instance_name]
 \t)
-\tfor row: Dictionary in db.query_result:
+\tfor row in db.query_result:
 \t\tvar contents_v: Variant = JSON.parse_string(str(row.get("contents_json", "{}")))
 \t\tvar contents: Dictionary = contents_v if contents_v is Dictionary else {}
 \t\tresult.append({
@@ -116,7 +116,7 @@ func pickup(peer_id: int, instance, bag_id: int) -> Dictionary:
 \t}
 
 
-func _broadcast(instance, type: StringName, payload: Dictionary) -> void:
+func _broadcast(instance, type, payload: Dictionary) -> void:
 \tif instance == null:
 \t\treturn
 \tfor peer_id: int in instance.connected_peers:

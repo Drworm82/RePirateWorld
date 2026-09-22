@@ -31,11 +31,11 @@ func execute(args: PackedStringArray, peer_id: int, server_instance: ServerInsta
 	names.sort()
 	var lines: PackedStringArray = []
 	for command_name: String in names:
-		var command: ChatCommand = commands[command_name]
-		if CommandPermissions.can_run(command, player, server_instance):
+		var listed_command: ChatCommand = commands[command_name]
+		if CommandPermissions.can_run(listed_command, player, server_instance):
 			var entry: String = "/" + command_name
-			if not command.command_alias.is_empty():
-				entry += " (" + ", ".join(command.command_alias) + ")"
+			if not listed_command.command_alias.is_empty():
+				entry += " (" + ", ".join(listed_command.command_alias) + ")"
 			lines.append(entry)
 
 	if lines.is_empty():

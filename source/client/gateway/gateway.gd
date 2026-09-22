@@ -120,6 +120,7 @@ func _ready() -> void:
 	_wire_button_sounds()  # static + character-creation buttons exist by now
 	_start_gateway_music()
 	_apply_gateway_theme(_pick_startup_palette())
+	print("[CLIENT] Gateway setup complete; waiting 1.5s before handshake")
 	# Live-apply a palette picked in the Settings menu (the gateway's own $Settings
 	# overlay shows the same dropdown) — no relaunch needed.
 	ClientState.settings.setting_changed.connect(_on_settings_changed)
@@ -127,10 +128,13 @@ func _ready() -> void:
 	local_id = CmdlineUtils.get_parsed_args().get("id", "")
 
 	await get_tree().create_timer(1.5).timeout
+	print("[CLIENT] 1.5s timer completed; starting boot handshake")
 
 	# Boot gate: confirm the gateway is reachable + our build matches before any menu
 	# shows. Blocks (update) or retries on failure; else resumes or reveals the menu.
+	print("[CLIENT] Calling _boot_handshake()")
 	if not await _boot_handshake():
+		print("[CLIENT] _boot_handshake() returned false; gateway setup stopping")
 		return
 	# Keep "Connecting…" up through sign-in; the reveal (menu or resume) ends boot.
 	if not await try_auto_login():

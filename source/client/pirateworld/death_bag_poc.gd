@@ -118,6 +118,12 @@ func _on_bag_changed(payload: Dictionary) -> void:
 	var instance := InstanceClient.current
 	if instance == null:
 		return
+	var bag_node: Node2D = _bags.get(_opened_bag_id)
+	if bag_node != null and str(bag_node.get_meta("state", "floating")) == "sunk":
+		var sunk_refreshed: Array = await Client.request_data_await(&"death_bag.sunk_open", {"bag_id": _opened_bag_id}, instance.name)
+		if sunk_refreshed.size() >= 2 and sunk_refreshed[1] == OK and bool(sunk_refreshed[0].get("ok", false)):
+			_open_sunk_loot_window(instance, sunk_refreshed[0])
+		return
 	var refreshed: Array = await Client.request_data_await(&"death_bag.open", {"bag_id": _opened_bag_id}, instance.name)
 	if refreshed.size() >= 2 and refreshed[1] == OK and bool(refreshed[0].get("ok", false)):
 		_open_loot_window(instance, refreshed[0])

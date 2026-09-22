@@ -1,11 +1,11 @@
 extends DataRequestHandler
 
 func data_request_handler(
-\tpeer_id: int,
-\tinstance: ServerInstance,
-\targs: Dictionary
+	peer_id: int,
+	instance: ServerInstance,
+	args: Dictionary
 ) -> Dictionary:
-\tvar bag_id: int = int(args.get("bag_id", 0))
-\tif WorldServer.curr == null or WorldServer.curr.instance_manager.death_bag_service == null:
-\t\treturn {"ok": false, "reason": "service_unavailable"}
-\treturn WorldServer.curr.instance_manager.death_bag_service.pickup(peer_id, instance, bag_id)
+	var bag_id: int = int(args.get("bag_id", 0))
+	if WorldServer.curr == null or WorldServer.curr.instance_manager.death_bag_service == null:
+		return {"ok": false, "reason": "service_unavailable"}
+	return WorldServer.curr.instance_manager.death_bag_service.pickup(peer_id, instance, bag_id)

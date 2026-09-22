@@ -254,6 +254,11 @@ func _open_sunk_loot_window(instance: InstanceClient, payload: Dictionary) -> vo
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 
+	var capacity := Label.new()
+	capacity.text = "Espacio: %d / %d" % [int(payload.get("inventory_slots_used", 0)), int(payload.get("inventory_slot_capacity", 36))]
+	capacity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(capacity)
+
 	var contents: Dictionary = payload.get("contents", {})
 	if contents.is_empty():
 		var empty := Label.new()
@@ -265,16 +270,9 @@ func _open_sunk_loot_window(instance: InstanceClient, payload: Dictionary) -> vo
 		var slot = contents[slot_uid]
 		if not slot is Dictionary:
 			continue
-		var row := HBoxContainer.new()
-		var label := Label.new()
-		label.text = "ID %d × %d" % [int(slot.get("id", 0)), int(slot.get("a", 0))]
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(label)
-		var take := Button.new()
-		take.text = "Tomar"
-		take.pressed.connect(_sunk_loot_slot.bind(instance.name, _opened_bag_id, str(slot_uid)))
-		row.add_child(take)
-		list.add_child(row)
+		list.add_child(_make_loot_row(slot_uid, slot, func(uid: String) -> void:
+			_sunk_loot_slot(instance.name, _opened_bag_id, uid)
+		))
 
 	var actions := HBoxContainer.new()
 	root.add_child(actions)
@@ -292,13 +290,51 @@ func _open_sunk_loot_window(instance: InstanceClient, payload: Dictionary) -> vo
 	window.popup_centered()
 
 
+func _make_loot_row(slot_uid: Variant, slot: Dictionary, take_callback: Callable) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, 56)
+
+	var icon_host := TextureRect.new()
+	icon_host.custom_minimum_size = Vector2(48, 48)
+	icon_host.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon_host.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var item_id := int(slot.get("id", 0))
+	var item: Item = ContentRegistryHub.load_by_id(&"items", item_id) as Item
+	if item != null:
+		icon_host.texture = item.item_icon
+	row.add_child(icon_host)
+
+	var details := VBoxContainer.new()
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details.add_theme_constant_override("separation", 0)
+	var name := Label.new()
+	name.text = str(item.item_name) if item != null else "Objeto #%d" % item_id
+	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	details.add_child(name)
+	var amount := Label.new()
+	amount.text = "Cantidad: %d" % int(slot.get("a", 0))
+	details.add_child(amount)
+	row.add_child(details)
+
+	var take := Button.new()
+	take.text = "Tomar"
+	take.custom_minimum_size = Vector2(72, 44)
+	take.pressed.connect(func() -> void:
+		take_callback.call(str(slot_uid))
+	)
+	row.add_child(take)
+	return row
+
+
 func _sunk_loot_slot(instance_name: String, bag_id: int, slot_uid: String) -> void:
 	var result: Array = await Client.request_data_await(&"death_bag.sunk_loot", {"bag_id": bag_id, "slot_uid": slot_uid}, instance_name)
 	if result.size() < 2 or result[1] != OK:
 		return
 	var payload: Dictionary = result[0]
 	if not bool(payload.get("ok", false)):
-		Toaster.toast("No se pudo recuperar ese objeto.")
+		match str(payload.get("reason", "")):
+			"inventory_full": Toaster.toast("No tienes espacio en el inventario.")
+			_: Toaster.toast("No se pudo recuperar ese objeto.")
 		return
 	if bool(payload.get("contents", {}).is_empty()):
 		_close_loot_window()
@@ -317,7 +353,9 @@ func _sunk_loot_all(instance_name: String, bag_id: int) -> void:
 		_close_loot_window()
 		Toaster.toast("Recuperación completa.")
 	else:
-		Toaster.toast("No se pudo recuperar el contenido.")
+		match str(result[0].get("reason", "")):
+			"inventory_full": Toaster.toast("No tienes espacio en el inventario.")
+			_: Toaster.toast("No se pudo recuperar el contenido.")
 
 
 func _open_loot_window(instance: InstanceClient, payload: Dictionary) -> void:
@@ -347,21 +385,19 @@ func _open_loot_window(instance: InstanceClient, payload: Dictionary) -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 
+	var capacity := Label.new()
+	capacity.text = "Espacio: %d / %d" % [int(payload.get("inventory_slots_used", 0)), int(payload.get("inventory_slot_capacity", 36))]
+	capacity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(capacity)
+
 	var contents: Dictionary = payload.get("contents", {})
 	for slot_uid in contents:
 		var slot = contents[slot_uid]
 		if not slot is Dictionary:
 			continue
-		var row := HBoxContainer.new()
-		var label := Label.new()
-		label.text = "ID %d × %d" % [int(slot.get("id", 0)), int(slot.get("a", 0))]
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(label)
-		var take := Button.new()
-		take.text = "Tomar"
-		take.pressed.connect(_loot_slot.bind(instance.name, _opened_bag_id, str(slot_uid), window))
-		row.add_child(take)
-		list.add_child(row)
+		list.add_child(_make_loot_row(slot_uid, slot, func(uid: String) -> void:
+			_loot_slot(instance.name, _opened_bag_id, uid, window)
+		))
 
 	var actions := HBoxContainer.new()
 	root.add_child(actions)
@@ -404,7 +440,9 @@ func _loot_all(instance_name: String, bag_id: int, window: Window) -> void:
 		_close_loot_window()
 		Toaster.toast("Loot All completado.")
 	else:
-		Toaster.toast("No se pudo ejecutar Loot All.")
+		match str(result[0].get("reason", "")):
+			"inventory_full": Toaster.toast("No tienes espacio en el inventario.")
+			_: Toaster.toast("No se pudo ejecutar Loot All.")
 
 
 func _close_loot_window() -> void:

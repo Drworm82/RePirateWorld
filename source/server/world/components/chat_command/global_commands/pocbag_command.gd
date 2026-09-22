@@ -13,9 +13,9 @@ func execute(args: PackedStringArray, peer_id: int, server_instance: ServerInsta
 \tvar player: Player = server_instance.get_player(peer_id)
 \tif player == null:
 \t\treturn "Player not found."
-\tif WorldServer.curr.death_bag_service == null:
+\tif WorldServer.curr.instance_manager.death_bag_service == null:
 \t\treturn "Death Bag service is unavailable."
-\tvar result: Dictionary = WorldServer.curr.death_bag_service.spawn_from_player(server_instance, player)
+\tvar result: Dictionary = WorldServer.curr.instance_manager.death_bag_service.spawn_from_player(server_instance, player)
 \tif not bool(result.get("ok", false)):
 \t\treturn "Death Bag failed: %s" % str(result.get("reason", "unknown"))
 \tvar bag: Dictionary = result["bag"]

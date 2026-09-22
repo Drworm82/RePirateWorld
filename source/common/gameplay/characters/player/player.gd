@@ -50,6 +50,14 @@ const RESPAWN_PVP_IMMUNITY_MS: int = 3000
 const RAPID_DEATH_WINDOW_MS: int = 20000
 const RAPID_DEATH_LIMIT: int = 3
 
+## Small recovery kit granted on a normal respawn. The mechanic is permanent;
+## the exact item identities are provisional until PirateWorld has its final
+## primitive survival tools (the role is analogous to Rust's basic respawn kit).
+const SPAWN_KIT: Array[Dictionary] = [
+	{"item_id": 1, "amount": 1}, # Health Potion
+	{"item_id": 75, "amount": 1}, # Mana Potion
+]
+
 
 ## On death: tell the client (death screen + countdown + where to respawn), wait, then
 ## restore full health and clear the dead flag. Position is client-authoritative, so the
@@ -111,6 +119,7 @@ func die(killer: Character) -> void:
 		return # left the game while down
 
 	revive()
+	_grant_spawn_kit()
 	# The respawn lands on the map spawn point, which may sit on a warper — lock warper traversal
 	# briefly so stepping off doesn't immediately warp the player (their idea; mirrors spawn_player).
 	mark_just_teleported(RESPAWN_WARP_GRACE_MS)
@@ -126,6 +135,17 @@ func die(killer: Character) -> void:
 
 ## Top HP and mana back to full (does NOT touch the dead flag). The dungeon enter/exit refill uses it
 ## to save players a few potions, spar-style; revive() builds on it for respawns.
+func _grant_spawn_kit() -> void:
+	if player_resource == null or not GameMode.is_world_server():
+		return
+	for entry: Dictionary in SPAWN_KIT:
+		var item_id: int = int(entry.get("item_id", 0))
+		var amount: int = int(entry.get("amount", 0))
+		if item_id > 0 and amount > 0:
+			Inventory.add_item(player_resource.inventory, item_id, amount)
+	WorldServer.curr.database.store.save_player(player_resource)
+
+
 func restore_full() -> void:
 	stats_component.set_stat(Stat.HEALTH, stats_component.get_stat(Stat.HEALTH_MAX))
 	stats_component.set_stat(Stat.MANA, stats_component.get_stat(Stat.MANA_MAX))

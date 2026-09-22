@@ -8,7 +8,7 @@ const PICKUP_DISTANCE: float = 96.0
 var db
 var world_server
 
-func _init(_db: SQLite, _world_server) -> void:
+func _init(_db, _world_server) -> void:
 \tdb = _db
 \tworld_server = _world_server
 

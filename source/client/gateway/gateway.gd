@@ -93,6 +93,9 @@ var _skin_name_label: Label
 
 
 func _ready() -> void:
+	print("[CLIENT] Gateway _ready. Project version=", ProjectSettings.get_setting("application/config/version", "<missing>"))
+	print("[CLIENT] GatewayAPI.game_version()=", GatewayAPI.game_version())
+	print("[CLIENT] GatewayAPI.handshake()=", GatewayAPI.handshake())
 	# During boot, show only a centered "Connecting…" over the backdrop — the menu and
 	# the corner chrome (More / ConnectionInfo) stay hidden until the handshake passes,
 	# so nothing flashes before we know the gateway's reachable + our build matches.
@@ -141,6 +144,7 @@ func _boot_handshake() -> bool:
 	while true:
 		_show_connecting()
 		var response: Dictionary = await _request_handshake()
+		print("[CLIENT] Handshake response: ", response)
 		# Editor "Run Multiple Instances": gateway/master may still be booting, so ride
 		# out pure connection / not-ready errors. Exported clients skip this.
 		var attempts: int = 0
@@ -164,11 +168,16 @@ func _boot_handshake() -> bool:
 
 
 func _request_handshake() -> Dictionary:
-	return await do_request(
+	var version := GatewayAPI.game_version()
+	var endpoint := GatewayAPI.handshake()
+	print("[CLIENT] Sending handshake version=", version, " endpoint=", endpoint)
+	var response: Dictionary = await do_request(
 		HTTPClient.Method.METHOD_POST,
-		GatewayAPI.handshake(),
-		{GatewayAPI.KEY_CLIENT_VERSION: GatewayAPI.game_version()}
+		endpoint,
+		{GatewayAPI.KEY_CLIENT_VERSION: version}
 	)
+	print("[CLIENT] Handshake completed: ", response)
+	return response
 
 
 ## Centered "Connecting…" over the backdrop during boot — a plain pulsing label (no

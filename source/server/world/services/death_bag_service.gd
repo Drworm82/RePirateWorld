@@ -5,7 +5,7 @@ extends RefCounted
 
 const PICKUP_DISTANCE: float = 96.0
 
-var db: SQLite
+var db
 var world_server
 
 func _init(_db: SQLite, _world_server) -> void:
@@ -78,7 +78,7 @@ func pickup(peer_id: int, instance, bag_id: int) -> Dictionary:
 \tif instance == null or bag_id <= 0:
 \t\treturn {"ok": false, "reason": "bad_args"}
 
-\tvar player: Player = instance.get_player(peer_id)
+\tvar player = instance.get_player(peer_id)
 \tif player == null or player.player_resource == null:
 \t\treturn {"ok": false, "reason": "player_not_found"}
 

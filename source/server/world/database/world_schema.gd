@@ -36,6 +36,9 @@ static func ensure_schema(db: SQLite) -> void:
 	if version < 9:
 		_migration_v9(db)
 		_set_schema_version(db, 9)
+	if version < 10:
+		_migration_v10(db)
+		_set_schema_version(db, 10)
 
 
 static func _migration_v1(db: SQLite) -> void:
@@ -215,6 +218,21 @@ static func _migration_v8(db: SQLite) -> void:
 static func _migration_v9(db: SQLite) -> void:
 	if not _column_exists(db, "players", "wardstones_json"):
 		db.query("ALTER TABLE players ADD COLUMN wardstones_json TEXT NOT NULL DEFAULT '[]';")
+
+
+## v10: PirateWorld PoC-01 physical Death Bags. Each bag is a persistent world
+## entity snapshot: map, position, owner and unsecured inventory contents.
+static func _migration_v10(db: SQLite) -> void:
+\t_create_table_if_missing(db, "death_bags", {
+\t\t"bag_id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
+\t\t"instance_name": {"data_type": "text", "not_null": true},
+\t\t"x": {"data_type": "real", "not_null": true},
+\t\t"y": {"data_type": "real", "not_null": true},
+\t\t"owner_id": {"data_type": "int", "not_null": true},
+\t\t"contents_json": {"data_type": "text", "not_null": true},
+\t\t"created_at_ms": {"data_type": "int", "not_null": true}
+\t})
+\tdb.query("CREATE INDEX IF NOT EXISTS idx_death_bags_instance ON death_bags(instance_name, bag_id);")
 
 
 static func _column_exists(db: SQLite, table: String, column: String) -> bool:

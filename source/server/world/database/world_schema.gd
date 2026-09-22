@@ -39,6 +39,9 @@ static func ensure_schema(db) -> void:
 	if version < 10:
 		_migration_v10(db)
 		_set_schema_version(db, 10)
+	if version < 11:
+		_migration_v11(db)
+		_set_schema_version(db, 11)
 
 
 static func _migration_v1(db) -> void:
@@ -233,6 +236,14 @@ static func _migration_v10(db) -> void:
 		"created_at_ms": {"data_type": "int", "not_null": true}
 	})
 	db.query("CREATE INDEX IF NOT EXISTS idx_death_bags_instance ON death_bags(instance_name, bag_id);")
+
+
+static func _migration_v11(db) -> void:
+	if not _column_exists(db, "death_bags", "state"):
+		db.query("ALTER TABLE death_bags ADD COLUMN state TEXT NOT NULL DEFAULT 'floating';")
+	if not _column_exists(db, "death_bags", "sunk_at_ms"):
+		db.query("ALTER TABLE death_bags ADD COLUMN sunk_at_ms INTEGER NOT NULL DEFAULT 0;")
+	db.query("CREATE INDEX IF NOT EXISTS idx_death_bags_state ON death_bags(state, sunk_at_ms);")
 
 
 static func _column_exists(db, table: String, column: String) -> bool:

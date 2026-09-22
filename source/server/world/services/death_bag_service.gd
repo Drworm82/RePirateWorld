@@ -9,6 +9,8 @@ const FLOATING_DURATION_MS: int = 2 * 60 * 1000
 const SUNKEN_DURATION_MS: int = 5 * 60 * 1000
 const STATE_FLOATING: String = "floating"
 const STATE_SUNK: String = "sunk"
+# PoC capacity: 36 inventory slots, matching the current 6-column bag presentation.
+const INVENTORY_SLOT_CAPACITY: int = 36
 
 var db
 var world_server
@@ -268,19 +270,41 @@ func loot_all_sunk(peer_id, instance, bag_id: int) -> Dictionary:
         return {"ok": false, "reason": "player_not_found"}
 
     var contents: Dictionary = bag.contents
+    var moved_total := 0
     for slot_uid in contents.keys():
+        if not contents.has(slot_uid):
+            continue
         var slot = contents[slot_uid]
-        if slot is Dictionary:
-            var item_id := int(slot.get("id", 0))
-            var amount := int(slot.get("a", 0))
-            if item_id > 0 and amount > 0:
-                _add_item(player.player_resource.inventory, item_id, amount)
+        if not slot is Dictionary:
+            continue
+        var item_id := int(slot.get("id", 0))
+        var amount := int(slot.get("a", 0))
+        if item_id <= 0 or amount <= 0:
+            continue
+        var moved := _add_item(player.player_resource.inventory, item_id, amount)
+        moved_total += moved
+        var remaining := amount - moved
+        if remaining <= 0:
+            contents.erase(slot_uid)
+        else:
+            slot["a"] = remaining
+            contents[slot_uid] = slot
 
-    db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
+    if moved_total <= 0:
+        return {"ok": false, "reason": "inventory_full", "contents": contents}
+
+    _touch_lock(bag_id, peer_id)
     world_server.database.save_player(player.player_resource)
-    _release_lock(bag_id)
-    _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
-    return {"ok": true, "bag_id": bag_id, "emptied": true, "contents": {}}
+
+    if contents.is_empty():
+        db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
+        _release_lock(bag_id)
+        _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
+        return {"ok": true, "bag_id": bag_id, "moved": moved_total, "emptied": true, "contents": {}}
+
+    db.query_with_bindings("UPDATE death_bags SET contents_json=? WHERE bag_id=?;", [JSON.stringify(contents), bag_id])
+    _broadcast(instance, "pirateworld.death_bag.changed", {"bag_id": bag_id, "contents": contents})
+    return {"ok": true, "bag_id": bag_id, "moved": moved_total, "emptied": false, "contents": contents}
 
 
 func loot_all(peer_id, instance, bag_id):
@@ -308,25 +332,41 @@ func loot_all(peer_id, instance, bag_id):
         return {"ok": false, "reason": "too_far"}
 
     var contents: Dictionary = bag.contents
+    var moved_total := 0
     for slot_uid in contents.keys():
+        if not contents.has(slot_uid):
+            continue
         var slot = contents[slot_uid]
-        if slot is Dictionary:
-            var item_id := int(slot.get("id", 0))
-            var amount := int(slot.get("a", 0))
-            if item_id > 0 and amount > 0:
-                _add_item(player.player_resource.inventory, item_id, amount)
+        if not slot is Dictionary:
+            continue
+        var item_id := int(slot.get("id", 0))
+        var amount := int(slot.get("a", 0))
+        if item_id <= 0 or amount <= 0:
+            continue
+        var moved := _add_item(player.player_resource.inventory, item_id, amount)
+        moved_total += moved
+        var remaining := amount - moved
+        if remaining <= 0:
+            contents.erase(slot_uid)
+        else:
+            slot["a"] = remaining
+            contents[slot_uid] = slot
 
-    db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
+    if moved_total <= 0:
+        return {"ok": false, "reason": "inventory_full", "contents": contents}
+
+    _touch_lock(bag_id, peer_id)
     world_server.database.save_player(player.player_resource)
-    _release_lock(bag_id)
-    _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
 
-    return {
-        "ok": true,
-        "bag_id": bag_id,
-        "emptied": true,
-        "contents": {},
-    }
+    if contents.is_empty():
+        db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
+        _release_lock(bag_id)
+        _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
+        return {"ok": true, "bag_id": bag_id, "moved": moved_total, "emptied": true, "contents": {}}
+
+    db.query_with_bindings("UPDATE death_bags SET contents_json=? WHERE bag_id=?;", [JSON.stringify(contents), bag_id])
+    _broadcast(instance, "pirateworld.death_bag.changed", {"bag_id": bag_id, "contents": contents})
+    return {"ok": true, "bag_id": bag_id, "moved": moved_total, "emptied": false, "contents": contents}
 
 
 func _load_bag(bag_id: int) -> Dictionary:
@@ -505,21 +545,45 @@ func _loot_with_mode(peer_id, instance, bag_id, slot_uid: String, expected_state
     if item_id <= 0 or amount <= 0:
         return {"ok": false, "reason": "invalid_slot", "contents": contents}
 
-    _add_item(player.player_resource.inventory, item_id, amount)
-    contents.erase(slot_uid)
+    var moved := _add_item(player.player_resource.inventory, item_id, amount)
+    if moved <= 0:
+        return {"ok": false, "reason": "inventory_full", "contents": contents}
+
+    var remaining := amount - moved
+    if remaining <= 0:
+        contents.erase(slot_uid)
+    else:
+        slot["a"] = remaining
+        contents[slot_uid] = slot
+
     _touch_lock(bag_id, peer_id)
+    world_server.database.save_player(player.player_resource)
 
     if contents.is_empty():
         db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
-        world_server.database.save_player(player.player_resource)
         _release_lock(bag_id)
         _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
-        return {"ok": true, "bag_id": bag_id, "slot_uid": slot_uid, "emptied": true, "contents": {}}
+        return {
+            "ok": true,
+            "bag_id": bag_id,
+            "slot_uid": slot_uid,
+            "moved": moved,
+            "remaining": 0,
+            "emptied": true,
+            "contents": {},
+        }
 
     db.query_with_bindings("UPDATE death_bags SET contents_json=? WHERE bag_id=?;", [JSON.stringify(contents), bag_id])
-    world_server.database.save_player(player.player_resource)
     _broadcast(instance, "pirateworld.death_bag.changed", {"bag_id": bag_id, "contents": contents})
-    return {"ok": true, "bag_id": bag_id, "slot_uid": slot_uid, "emptied": false, "contents": contents}
+    return {
+        "ok": true,
+        "bag_id": bag_id,
+        "slot_uid": slot_uid,
+        "moved": moved,
+        "remaining": remaining,
+        "emptied": false,
+        "contents": contents,
+    }
 
 
 func player_distance(instance, peer_id: int, bag: Dictionary) -> float:
@@ -559,17 +623,48 @@ func _broadcast(instance, message_type, payload):
         world_server.data_push.rpc_id(peer_id, message_type, payload)
 
 
-func _add_item(inventory, item_id, amount): 
-    for slot_uid in inventory:
+func _item_stack_limit(item_id: int) -> int:
+    var item: Item = ContentRegistryHub.load_by_id(&"items", item_id) as Item
+    if item == null:
+        return 1
+    return int(item.stack_limit)
+
+
+func _add_item(inventory: Dictionary, item_id: int, amount: int) -> int:
+    if item_id <= 0 or amount <= 0:
+        return 0
+
+    var stack_limit := _item_stack_limit(item_id)
+    var remaining := amount
+
+    # Fill existing stacks first.
+    for slot_uid in inventory.keys():
         var slot = inventory[slot_uid]
+        if not slot is Dictionary or int(slot.get("id", 0)) != item_id:
+            continue
+        var current := int(slot.get("a", 0))
+        if stack_limit <= 1:
+            continue
+        var room := amount if stack_limit <= 0 else max(0, stack_limit - current)
+        if room <= 0:
+            continue
+        var moved := min(remaining, room)
+        slot["a"] = current + moved
+        inventory[slot_uid] = slot
+        remaining -= moved
+        if remaining <= 0:
+            return amount
 
-        if slot is Dictionary and int(slot.get("id", 0)) == item_id:
-            slot["a"] = int(slot.get("a", 0)) + amount
-            inventory[slot_uid] = slot
-            return
+    # Create new stacks while slots are available.
+    while remaining > 0 and inventory.size() < INVENTORY_SLOT_CAPACITY:
+        var new_slot_id := "death_bag_" + str(Time.get_ticks_usec()) + "_" + str(inventory.size())
+        var moved := remaining if stack_limit <= 1 or stack_limit <= 0 else min(remaining, stack_limit)
+        inventory[new_slot_id] = {
+            "id": item_id,
+            "a": moved,
+        }
+        remaining -= moved
 
-    var new_slot_id = "death_bag_" + str(Time.get_ticks_usec())
-    inventory[new_slot_id] = {
-        "id": item_id,
-        "a": amount,
-    }
+    return amount - remaining
+
+

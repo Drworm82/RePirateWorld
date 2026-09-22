@@ -52,6 +52,7 @@ func spawn_from_player(instance, player):
         "instance_name": instance_name,
         "position": player.global_position,
         "owner_id": player.player_resource.player_id,
+        "owner_name": player.player_resource.display_name,
         "contents": contents,
         "created_at_ms": created_at_ms,
     }

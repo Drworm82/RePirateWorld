@@ -11,6 +11,8 @@ const STATE_FLOATING: String = "floating"
 const STATE_SUNK: String = "sunk"
 # PoC capacity: 36 inventory slots, matching the current 6-column bag presentation.
 const INVENTORY_SLOT_CAPACITY: int = 36
+# PoC capacity: 36 inventory slots, matching the current 6-column bag presentation.
+const INVENTORY_SLOT_CAPACITY: int = 36
 
 var db
 var world_server
@@ -208,41 +210,29 @@ func loot(peer_id, instance, bag_id, slot_uid: String):
     if item_id <= 0 or amount <= 0:
         return {"ok": false, "reason": "invalid_slot", "contents": contents}
 
-    _add_item(player.player_resource.inventory, item_id, amount)
-    contents.erase(slot_uid)
+    var moved := _add_item(player.player_resource.inventory, item_id, amount)
+    if moved <= 0:
+        return {"ok": false, "reason": "inventory_full", "contents": contents}
+
+    var remaining := amount - moved
+    if remaining <= 0:
+        contents.erase(slot_uid)
+    else:
+        slot["a"] = remaining
+        contents[slot_uid] = slot
+
     _touch_lock(bag_id, peer_id)
+    world_server.database.save_player(player.player_resource)
 
     if contents.is_empty():
         db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
-        world_server.database.save_player(player.player_resource)
         _release_lock(bag_id)
         _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
-        return {
-            "ok": true,
-            "bag_id": bag_id,
-            "slot_uid": slot_uid,
-            "emptied": true,
-            "contents": {},
-        }
+        return {"ok": true, "bag_id": bag_id, "slot_uid": slot_uid, "moved": moved, "remaining": 0, "emptied": true, "contents": {}}
 
-    db.query_with_bindings(
-        "UPDATE death_bags SET contents_json=? WHERE bag_id=?;",
-        [JSON.stringify(contents), bag_id]
-    )
-    world_server.database.save_player(player.player_resource)
-
-    _broadcast(instance, "pirateworld.death_bag.changed", {
-        "bag_id": bag_id,
-        "contents": contents,
-    })
-
-    return {
-        "ok": true,
-        "bag_id": bag_id,
-        "slot_uid": slot_uid,
-        "emptied": false,
-        "contents": contents,
-    }
+    db.query_with_bindings("UPDATE death_bags SET contents_json=? WHERE bag_id=?;", [JSON.stringify(contents), bag_id])
+    _broadcast(instance, "pirateworld.death_bag.changed", {"bag_id": bag_id, "contents": contents})
+    return {"ok": true, "bag_id": bag_id, "slot_uid": slot_uid, "moved": moved, "remaining": remaining, "emptied": false, "contents": contents}
 
 
 func loot_sunk(peer_id, instance, bag_id, slot_uid: String) -> Dictionary:
@@ -630,6 +620,13 @@ func _item_stack_limit(item_id: int) -> int:
     return int(item.stack_limit)
 
 
+func _item_stack_limit(item_id: int) -> int:
+    var item: Item = ContentRegistryHub.load_by_id(&"items", item_id) as Item
+    if item == null:
+        return 1
+    return int(item.stack_limit)
+
+
 func _add_item(inventory: Dictionary, item_id: int, amount: int) -> int:
     if item_id <= 0 or amount <= 0:
         return 0
@@ -637,7 +634,6 @@ func _add_item(inventory: Dictionary, item_id: int, amount: int) -> int:
     var stack_limit := _item_stack_limit(item_id)
     var remaining := amount
 
-    # Fill existing stacks first.
     for slot_uid in inventory.keys():
         var slot = inventory[slot_uid]
         if not slot is Dictionary or int(slot.get("id", 0)) != item_id:
@@ -655,16 +651,10 @@ func _add_item(inventory: Dictionary, item_id: int, amount: int) -> int:
         if remaining <= 0:
             return amount
 
-    # Create new stacks while slots are available.
     while remaining > 0 and inventory.size() < INVENTORY_SLOT_CAPACITY:
         var new_slot_id := "death_bag_" + str(Time.get_ticks_usec()) + "_" + str(inventory.size())
         var moved := remaining if stack_limit <= 1 or stack_limit <= 0 else min(remaining, stack_limit)
-        inventory[new_slot_id] = {
-            "id": item_id,
-            "a": moved,
-        }
+        inventory[new_slot_id] = {"id": item_id, "a": moved}
         remaining -= moved
 
     return amount - remaining
-
-

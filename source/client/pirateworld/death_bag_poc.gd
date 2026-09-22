@@ -1,6 +1,6 @@
 extends Node
-## PirateWorld PoC-01 client bridge.
-## F sends pickup intent; the server validates distance, instance and bag state.
+## PirateWorld PoC-02 client bridge.
+## F opens a server-authoritative Death Bag loot window.
 
 const BAG_ICON_PATH: String = "res://assets/sprites/items/icons/Icon271.png"
 const PICKUP_ACTION: StringName = &"player_interact"
@@ -17,6 +17,7 @@ func _ready() -> void:
 		return
 	Client.subscribe(&"pirateworld.death_bag.spawn", _on_bag_spawn)
 	Client.subscribe(&"pirateworld.death_bag.remove", _on_bag_remove)
+	Client.subscribe(&"pirateworld.death_bag.changed", _on_bag_changed)
 	call_deferred("_refresh_instance")
 
 
@@ -80,6 +81,20 @@ func _on_bag_spawn(payload: Dictionary) -> void:
 	node.global_position = payload.get("position", Vector2.ZERO)
 	instance.instance_map.add_child(node)
 	_bags[bag_id] = node
+
+
+func _on_bag_changed(payload: Dictionary) -> void:
+	if _opened_bag_id <= 0 or int(payload.get("bag_id", 0)) != _opened_bag_id:
+		return
+	_close_loot_window()
+	if bool(payload.get("contents", {}).is_empty()):
+		return
+	var instance := InstanceClient.current
+	if instance == null:
+		return
+	var refreshed: Array = await Client.request_data_await(&"death_bag.open", {"bag_id": _opened_bag_id}, instance.name)
+	if refreshed.size() >= 2 and refreshed[1] == OK and bool(refreshed[0].get("ok", false)):
+		_open_loot_window(instance, refreshed[0])
 
 
 func _on_bag_remove(payload: Dictionary) -> void:
@@ -207,10 +222,15 @@ func _loot_all(instance_name: String, bag_id: int, window: Window) -> void:
 
 
 func _close_loot_window() -> void:
+	var bag_id := _opened_bag_id
 	_opened_bag_id = 0
 	var window := get_node_or_null("DeathBagLootWindow")
 	if window != null:
 		window.queue_free()
+	if bag_id > 0:
+		var instance := InstanceClient.current
+		if instance != null:
+			Client.request_data_await(&"death_bag.close", {"bag_id": bag_id}, instance.name)
 
 
 func _clear_bags() -> void:

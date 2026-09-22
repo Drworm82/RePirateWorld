@@ -15,6 +15,7 @@ const RECALL_INSTANCE_NAME: String = "GuildHouse"
 ## A brand-new character's first-ever login starts in the jail cell instead — see
 ## _on_peer_connected.
 const TAVERN_INSTANCE_NAME: String = "GuildHouse"
+const DEATH_BAG_SERVICE_SCRIPT: Script = preload("res://source/server/world/services/death_bag_service.gd")
 
 var loading_instances: Dictionary[InstanceResource, ServerInstance]
 var instance_collection: Dictionary[String, InstanceResource]
@@ -23,12 +24,12 @@ var default_instance: InstanceResource
 @export var world_server: WorldServer
 
 ## PirateWorld PoC-01: gameplay service owned by the instance layer, not WorldServer.
-var death_bag_service: DeathBagService
+var death_bag_service: RefCounted
 
 
 func start_instance_manager() -> void:
 	ServerInstance.world_server = world_server
-	death_bag_service = DeathBagService.new(world_server.database.db, world_server)
+	death_bag_service = DEATH_BAG_SERVICE_SCRIPT.new(world_server.database.db, world_server)
 	
 	setup_global_commands_and_roles()
 

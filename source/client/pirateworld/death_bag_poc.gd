@@ -75,7 +75,9 @@ func _on_bag_spawn(payload: Dictionary) -> void:
 	sprite.scale = Vector2(1.5, 1.5)
 	node.add_child(sprite)
 	var label := Label.new()
-	label.text = "Mochila de %s" % str(payload.get("owner_name", "Desconocido"))
+	var owner_name := str(payload.get("owner_name", "Desconocido"))
+	var state := str(payload.get("state", "floating"))
+	label.text = "Mochila hundida de %s" % owner_name if state == "sunk" else "Mochila de %s" % owner_name
 	label.position = Vector2(-45, 18)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	node.add_child(label)

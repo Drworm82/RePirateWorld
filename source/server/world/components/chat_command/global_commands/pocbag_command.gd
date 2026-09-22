@@ -8,7 +8,7 @@ func _init() -> void:
 	command_usage = "/pocbag"
 
 func execute(args: PackedStringArray, peer_id: int, server_instance: ServerInstance) -> String:
-	if not args.is_empty():
+	if args.size() != 1:
 		return "Usage: " + command_usage
 	var player: Player = server_instance.get_player(peer_id)
 	if player == null:

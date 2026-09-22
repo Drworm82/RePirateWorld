@@ -5,6 +5,10 @@ extends RefCounted
 
 const PICKUP_DISTANCE: float = 96.0
 const ACCESS_TIMEOUT_MS: int = 60_000
+const FLOATING_DURATION_MS: int = 2 * 60 * 1000
+const SUNKEN_DURATION_MS: int = 5 * 60 * 1000
+const STATE_FLOATING: String = "floating"
+const STATE_SUNK: String = "sunk"
 
 var db
 var world_server
@@ -53,6 +57,7 @@ func spawn_from_player(instance, player):
         "position": player.global_position,
         "owner_id": player.player_resource.player_id,
         "owner_name": player.player_resource.display_name,
+        "state": STATE_FLOATING,
         "contents": contents,
         "created_at_ms": created_at_ms,
     }
@@ -65,7 +70,7 @@ func list_for_instance(instance_name):
     var result = []
 
     db.query_with_bindings(
-        "SELECT bag_id, instance_name, x, y, owner_id, contents_json, created_at_ms FROM death_bags WHERE instance_name=? ORDER BY bag_id ASC;",
+        "SELECT bag_id, instance_name, x, y, owner_id, contents_json, created_at_ms, state, sunk_at_ms FROM death_bags WHERE instance_name=? ORDER BY bag_id ASC;",
         [instance_name]
     )
 
@@ -80,8 +85,11 @@ func list_for_instance(instance_name):
             "instance_name": str(row.get("instance_name", "")),
             "position": Vector2(float(row.get("x", 0.0)), float(row.get("y", 0.0))),
             "owner_id": int(row.get("owner_id", 0)),
+            "owner_name": world_server.database.store.get_player_display_name(int(row.get("owner_id", 0))),
+            "state": str(row.get("state", STATE_FLOATING)),
             "contents": contents,
             "created_at_ms": int(row.get("created_at_ms", 0)),
+            "sunk_at_ms": int(row.get("sunk_at_ms", 0)),
         })
 
     return result
@@ -102,6 +110,9 @@ func open(peer_id, instance, bag_id):
     if str(bag.get("instance_name", "")) != str(instance.instance_resource.instance_name):
         return {"ok": false, "reason": "wrong_instance"}
 
+    if str(bag.get("state", STATE_FLOATING)) != STATE_FLOATING:
+        return {"ok": false, "reason": "sunk"}
+
     if player.global_position.distance_to(bag.position) > PICKUP_DISTANCE:
         return {"ok": false, "reason": "too_far"}
 
@@ -113,6 +124,7 @@ func open(peer_id, instance, bag_id):
         "bag_id": bag_id,
         "owner_id": bag.owner_id,
         "owner_name": bag.owner_name,
+        "state": bag.state,
         "contents": bag.contents,
     }
 
@@ -136,6 +148,10 @@ func loot(peer_id, instance, bag_id, slot_uid: String):
     if str(bag.get("instance_name", "")) != str(instance.instance_resource.instance_name):
         _release_lock(bag_id)
         return {"ok": false, "reason": "wrong_instance"}
+
+    if str(bag.get("state", STATE_FLOATING)) != STATE_FLOATING:
+        _release_lock(bag_id)
+        return {"ok": false, "reason": "sunk"}
 
     if player.global_position.distance_to(bag.position) > PICKUP_DISTANCE:
         _release_lock(bag_id)
@@ -235,7 +251,7 @@ func loot_all(peer_id, instance, bag_id):
 
 func _load_bag(bag_id: int) -> Dictionary:
     db.query_with_bindings(
-        "SELECT bag_id, instance_name, x, y, owner_id, contents_json FROM death_bags WHERE bag_id=?;",
+        "SELECT bag_id, instance_name, x, y, owner_id, contents_json, state, sunk_at_ms FROM death_bags WHERE bag_id=?;",
         [bag_id]
     )
 
@@ -254,8 +270,76 @@ func _load_bag(bag_id: int) -> Dictionary:
         "position": Vector2(float(row.get("x", 0.0)), float(row.get("y", 0.0))),
         "owner_id": int(row.get("owner_id", 0)),
         "owner_name": world_server.database.store.get_player_display_name(int(row.get("owner_id", 0))),
+        "state": str(row.get("state", STATE_FLOATING)),
+        "sunk_at_ms": int(row.get("sunk_at_ms", 0)),
         "contents": contents,
     }
+
+
+func tick_lifecycle() -> void:
+    var now_ms := int(Time.get_unix_time_from_system() * 1000.0)
+    db.query("SELECT bag_id, instance_name, state, created_at_ms, sunk_at_ms FROM death_bags;")
+    for row: Dictionary in db.query_result:
+        var bag_id := int(row.get("bag_id", 0))
+        var instance_name := str(row.get("instance_name", ""))
+        var state := str(row.get("state", STATE_FLOATING))
+        var created_at_ms := int(row.get("created_at_ms", 0))
+        var sunk_at_ms := int(row.get("sunk_at_ms", 0))
+
+        if state == STATE_FLOATING and now_ms - created_at_ms >= FLOATING_DURATION_MS:
+            db.query_with_bindings(
+                "UPDATE death_bags SET state=?, sunk_at_ms=? WHERE bag_id=?;",
+                [STATE_SUNK, now_ms, bag_id]
+            )
+            _release_lock(bag_id)
+            _broadcast_state(instance_name, bag_id, STATE_SUNK)
+        elif state == STATE_SUNK and sunk_at_ms > 0 and now_ms - sunk_at_ms >= SUNKEN_DURATION_MS:
+            db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
+            _release_lock(bag_id)
+            _broadcast_remove(instance_name, bag_id)
+
+
+func force_sink(bag_id: int) -> Dictionary:
+    var bag := _load_bag(bag_id)
+    if bag.is_empty():
+        return {"ok": false, "reason": "not_found"}
+    if bag.state == STATE_SUNK:
+        return {"ok": true, "bag_id": bag_id, "state": STATE_SUNK}
+    var now_ms := int(Time.get_unix_time_from_system() * 1000.0)
+    db.query_with_bindings(
+        "UPDATE death_bags SET state=?, sunk_at_ms=? WHERE bag_id=?;",
+        [STATE_SUNK, now_ms, bag_id]
+    )
+    _release_lock(bag_id)
+    _broadcast_state(str(bag.get("instance_name", "")), bag_id, STATE_SUNK)
+    return {"ok": true, "bag_id": bag_id, "state": STATE_SUNK}
+
+
+func _broadcast_state(instance_name: String, bag_id: int, state: String) -> void:
+    var instance = _find_instance(instance_name)
+    if instance == null:
+        return
+    _broadcast(instance, "pirateworld.death_bag.state", {
+        "bag_id": bag_id,
+        "state": state,
+    })
+
+
+func _broadcast_remove(instance_name: String, bag_id: int) -> void:
+    var instance = _find_instance(instance_name)
+    if instance == null:
+        return
+    _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
+
+
+func _find_instance(instance_name: String):
+    if world_server == null or world_server.instance_manager == null:
+        return null
+    for instance_resource in world_server.instance_manager.instance_collection.values():
+        for instance in instance_resource.charged_instances:
+            if str(instance.instance_resource.instance_name) == instance_name:
+                return instance
+    return null
 
 
 func close(peer_id, instance, bag_id: int):

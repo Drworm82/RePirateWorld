@@ -111,6 +111,7 @@ func open(peer_id, instance, bag_id):
         "ok": true,
         "bag_id": bag_id,
         "owner_id": bag.owner_id,
+        "owner_name": bag.owner_name,
         "contents": bag.contents,
     }
 
@@ -251,8 +252,24 @@ func _load_bag(bag_id: int) -> Dictionary:
         "instance_name": str(row.get("instance_name", "")),
         "position": Vector2(float(row.get("x", 0.0)), float(row.get("y", 0.0))),
         "owner_id": int(row.get("owner_id", 0)),
+        "owner_name": world_server.database.store.get_player_display_name(int(row.get("owner_id", 0))),
         "contents": contents,
     }
+
+
+func close(peer_id, instance, bag_id: int):
+    if instance == null or bag_id <= 0:
+        return {"ok": false, "reason": "bad_args"}
+
+    var player = instance.get_player(peer_id)
+    if player == null or player.player_resource == null:
+        return {"ok": false, "reason": "player_not_found"}
+
+    if not _owns_lock(bag_id, peer_id):
+        return {"ok": false, "reason": "not_open"}
+
+    _release_lock(bag_id)
+    return {"ok": true, "bag_id": bag_id}
 
 
 func _claim_lock(bag_id: int, peer_id: int) -> bool:

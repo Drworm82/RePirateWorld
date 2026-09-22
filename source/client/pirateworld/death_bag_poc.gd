@@ -77,7 +77,8 @@ func _on_bag_spawn(payload: Dictionary) -> void:
 	var label := Label.new()
 	var owner_name := str(payload.get("owner_name", "Desconocido"))
 	var state := str(payload.get("state", "floating"))
-	label.text = "Mochila hundida de %s" % owner_name if state == "sunk" else "Mochila de %s" % owner_name
+	var label_prefix := "Mochila hundida de %s" if state == "sunk" else "Mochila de %s"
+	label.text = (label_prefix % owner_name) + " [#%d]" % bag_id
 	label.position = Vector2(-45, 18)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	node.add_child(label)

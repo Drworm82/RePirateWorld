@@ -255,11 +255,6 @@ func _open_sunk_loot_window(instance: InstanceClient, payload: Dictionary) -> vo
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 
-	var capacity := Label.new()
-	capacity.text = "Espacio: %d / %d" % [int(payload.get("inventory_slots_used", 0)), int(payload.get("inventory_slot_capacity", 36))]
-	capacity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	root.add_child(capacity)
-
 	var contents: Dictionary = payload.get("contents", {})
 	if contents.is_empty():
 		var empty := Label.new()

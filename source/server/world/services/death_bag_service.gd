@@ -529,17 +529,6 @@ func player_distance(instance, peer_id: int, bag: Dictionary) -> float:
     return player.global_position.distance_to(bag.position)
 
 
-func _claim_lock
-    _expire_lock_if_needed(bag_id)
-    if _locks.has(bag_id):
-        return false
-    _locks[bag_id] = {
-        "peer_id": peer_id,
-        "last_action_ms": Time.get_ticks_msec(),
-    }
-    return true
-
-
 func _owns_lock(bag_id: int, peer_id: int) -> bool:
     _expire_lock_if_needed(bag_id)
     return _locks.has(bag_id) and int(_locks[bag_id].get("peer_id", -1)) == peer_id

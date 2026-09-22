@@ -1,13 +1,13 @@
 extends DataRequestHandler
 
 func data_request_handler(
-\tpeer_id: int,
-\tinstance: ServerInstance,
-\targs: Dictionary
+	peer_id: int,
+	instance: ServerInstance,
+	args: Dictionary
 ) -> Dictionary:
-\tif instance == null or WorldServer.curr == null or WorldServer.curr.instance_manager.death_bag_service == null:
-\t\treturn {"ok": false, "bags": []}
-\treturn {
-\t\t"ok": true,
-\t\t"bags": WorldServer.curr.instance_manager.death_bag_service.list_for_instance(str(instance.instance_resource.instance_name)),
-\t}
+	if instance == null or WorldServer.curr == null or WorldServer.curr.instance_manager.death_bag_service == null:
+		return {"ok": false, "bags": []}
+	return {
+		"ok": true,
+		"bags": WorldServer.curr.instance_manager.death_bag_service.list_for_instance(str(instance.instance_resource.instance_name)),
+	}

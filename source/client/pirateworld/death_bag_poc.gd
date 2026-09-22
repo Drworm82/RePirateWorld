@@ -37,7 +37,6 @@ func _refresh_instance() -> void:
 		return
 	var instance: InstanceClient = InstanceClient.current
 	if instance == null or instance.instance_map == null:
-		call_deferred("_refresh_instance")
 		return
 	_instance_name = instance.name
 	_syncing = true

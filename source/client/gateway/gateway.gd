@@ -93,6 +93,9 @@ var _skin_name_label: Label
 
 
 func _ready() -> void:
+	print("[CLIENT] Gateway node entered _ready; GameMode=", GameMode.mode(), " is_client=", GameMode.is_client())
+	if not tree_exiting.is_connected(_on_gateway_tree_exiting):
+		tree_exiting.connect(_on_gateway_tree_exiting)
 	print("[CLIENT] Gateway _ready. Project version=", ProjectSettings.get_setting("application/config/version", "<missing>"))
 	print("[CLIENT] GatewayAPI.game_version()=", GatewayAPI.game_version())
 	print("[CLIENT] GatewayAPI.handshake()=", GatewayAPI.handshake())
@@ -1333,3 +1336,7 @@ func load_refresh_token(file_path: String) -> String:
 	var token: String = file.get_as_text()
 	file.close()
 	return token
+
+
+func _on_gateway_tree_exiting() -> void:
+	print("[CLIENT] Gateway node is exiting the scene tree.")

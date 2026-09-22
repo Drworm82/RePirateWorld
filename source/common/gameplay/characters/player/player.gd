@@ -114,23 +114,34 @@ func die(killer: Character) -> void:
 			"killed_by": killed_by,
 		})
 
-	await get_tree().create_timer(RESPAWN_DELAY).timeout
-	if not is_instance_valid(self):
-		return # left the game while down
+	# The player remains dead until the client explicitly requests a respawn.
+	# The Death Screen uses this same map spawn as the only available PoC respawn point.
+	# No automatic timer or inventory kit is applied here.
+	if exile_after_respawn:
+		# The anti-camp state is intentionally consumed only when the player actually
+		# respawns, not while they remain on the Death Screen.
+		pass
 
+
+## Explicit respawn requested from the Death Screen. PoC currently exposes only the
+## map's normal origin spawn; future Sleeping Bags / beds can reuse this flow.
+func respawn_at_origin() -> Dictionary:
+	if not is_instance_valid(self) or not is_dead:
+		return {"ok": false, "reason": "not_dead"}
+
+	var map: Map = get_parent() as Map
+	if map == null:
+		return {"ok": false, "reason": "no_map"}
+
+	var spawn_position: Vector2 = map.get_spawn_position()
 	revive()
 	_grant_spawn_kit()
-	# The respawn lands on the map spawn point, which may sit on a warper — lock warper traversal
-	# briefly so stepping off doesn't immediately warp the player (their idea; mirrors spawn_player).
 	mark_just_teleported(RESPAWN_WARP_GRACE_MS)
 
-	# Too many quick PvP deaths: relocate the victim to the far, safe jail_room spawn
-	# (a one-way move, NOT a jail sentence — warpers still let them walk back). Removes
-	# the target so a spawn-camp / feed loop ends. Streak already reset just above.
-	if exile_after_respawn and peer_id > 0:
-		_pvp_death_streak = 0
-		_last_pvp_death_ms = 0
-		WorldServer.curr.instance_manager.send_player_to_jail(peer_id)
+	return {
+		"ok": true,
+		"spawn": spawn_position,
+	}
 
 
 ## Top HP and mana back to full (does NOT touch the dead flag). The dungeon enter/exit refill uses it

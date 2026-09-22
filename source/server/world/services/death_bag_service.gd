@@ -117,7 +117,7 @@ func pickup(peer_id: int, instance, bag_id: int) -> Dictionary:
 \t}
 
 
-func _broadcast(instance: ServerInstance, type: StringName, payload: Dictionary) -> void:
+func _broadcast(instance, type: StringName, payload: Dictionary) -> void:
 \tif instance == null:
 \t\treturn
 \tfor peer_id: int in instance.connected_peers:

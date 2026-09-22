@@ -5,9 +5,9 @@ func data_request_handler(
 \tinstance: ServerInstance,
 \targs: Dictionary
 ) -> Dictionary:
-\tif instance == null or WorldServer.curr == null or WorldServer.curr.death_bag_service == null:
+\tif instance == null or WorldServer.curr == null or WorldServer.curr.instance_manager.death_bag_service == null:
 \t\treturn {"ok": false, "bags": []}
 \treturn {
 \t\t"ok": true,
-\t\t"bags": WorldServer.curr.death_bag_service.list_for_instance(str(instance.instance_resource.instance_name)),
+\t\t"bags": WorldServer.curr.instance_manager.death_bag_service.list_for_instance(str(instance.instance_resource.instance_name)),
 \t}

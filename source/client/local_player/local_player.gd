@@ -128,16 +128,86 @@ func _apply_team_bar_color() -> void:
 	set_health_bar_fill(BAR_COLOR_SELF)
 
 
-## Lock control while dead, then teleport ourselves to the spawn point (the server owns
-## HP + the dead flag; position is ours to set).
+## Lock control while dead and show the Death Screen. Respawn is explicit:
+## the server keeps Player.is_dead true until the player presses the button.
+var _death_screen: Window
+
 func _on_player_died(data: Dictionary) -> void:
 	_dead = true
 	_respawn_position = data.get("spawn", global_position)
-	await get_tree().create_timer(float(data.get("respawn_in", 3.0))).timeout
-	if not is_instance_valid(self):
+	_show_death_screen()
+
+func _show_death_screen() -> void:
+	if _death_screen != null and is_instance_valid(_death_screen):
 		return
+
+	var window := Window.new()
+	_death_screen = window
+	window.name = "DeathScreen"
+	window.title = "Has muerto"
+	window.size = Vector2i(420, 250)
+	window.close_requested.connect(func() -> void:
+		# The death screen cannot be dismissed without respawning.
+		pass
+	)
+
+	var root := VBoxContainer.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 14)
+	window.add_child(root)
+
+	var title := Label.new()
+	title.text = "HAS MUERTO"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 28)
+	root.add_child(title)
+
+	var info := Label.new()
+	info.text = "Tus objetos quedaron en una Death Bag.\\n\\nElige cuándo regresar al mundo."
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(info)
+
+	var respawn := Button.new()
+	respawn.text = "RESPAWNEAR EN EL INICIO"
+	respawn.custom_minimum_size = Vector2(0, 52)
+	respawn.pressed.connect(_request_origin_respawn.bind(respawn))
+	root.add_child(respawn)
+
+	add_child(window)
+	window.popup_centered()
+
+func _request_origin_respawn(button: Button) -> void:
+	if button.disabled:
+		return
+	button.disabled = true
+
+	var instance := InstanceClient.current
+	if instance == null:
+		button.disabled = false
+		return
+
+	var result: Array = await Client.request_data_await(&"player.respawn", {}, instance.name)
+	if result.size() < 2 or result[1] != OK:
+		button.disabled = false
+		Toaster.toast("No se pudo solicitar el respawn.")
+		return
+
+	var payload: Dictionary = result[0]
+	if not bool(payload.get("ok", false)):
+		button.disabled = false
+		match str(payload.get("reason", "")):
+			"not_dead": Toaster.toast("Ya no estás muerto.")
+			_: Toaster.toast("No puedes respawnear todavía.")
+		return
+
+	_respawn_position = payload.get("spawn", _respawn_position)
 	global_position = _respawn_position
 	_dead = false
+	if _death_screen != null and is_instance_valid(_death_screen):
+		_death_screen.queue_free()
+	_death_screen = null
 
 
 ## Server-driven teleport for the start/end of a sparring match. Pushes carry

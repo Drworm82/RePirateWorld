@@ -7,14 +7,14 @@ extends RefCounted
 const PICKUP_DISTANCE: float = 96.0
 
 var db: SQLite
-var world_server: WorldServer
+var world_server
 
-func _init(_db: SQLite, _world_server: WorldServer) -> void:
+func _init(_db: SQLite, _world_server) -> void:
 \tdb = _db
 \tworld_server = _world_server
 
 
-func spawn_from_player(instance: ServerInstance, player: Player) -> Dictionary:
+func spawn_from_player(instance, player) -> Dictionary:
 \tif instance == null or player == null or player.player_resource == null:
 \t\treturn {"ok": false, "reason": "invalid_player"}
 
@@ -75,7 +75,7 @@ func list_for_instance(instance_name: String) -> Array:
 \treturn result
 
 
-func pickup(peer_id: int, instance: ServerInstance, bag_id: int) -> Dictionary:
+func pickup(peer_id: int, instance, bag_id: int) -> Dictionary:
 \tif instance == null or bag_id <= 0:
 \t\treturn {"ok": false, "reason": "bad_args"}
 

@@ -99,6 +99,13 @@ func list_for_instance(instance_name):
     return result
 
 
+func _inventory_capacity_payload(inventory: Dictionary) -> Dictionary:
+    return {
+        "inventory_slots_used": inventory.size(),
+        "inventory_slot_capacity": INVENTORY_SLOT_CAPACITY,
+    }
+
+
 func open(peer_id, instance, bag_id):
     if instance == null or bag_id <= 0:
         return {"ok": false, "reason": "bad_args"}
@@ -131,6 +138,8 @@ func open(peer_id, instance, bag_id):
         "owner_name": bag.owner_name,
         "state": bag.state,
         "contents": bag.contents,
+        "inventory_slots_used": player.player_resource.inventory.size(),
+        "inventory_slot_capacity": INVENTORY_SLOT_CAPACITY,
     }
 
 
@@ -163,6 +172,8 @@ func open_sunk(peer_id, instance, bag_id: int) -> Dictionary:
         "state": bag.state,
         "contents": bag.contents,
         "access": "simulated_ad",
+        "inventory_slots_used": player.player_resource.inventory.size(),
+        "inventory_slot_capacity": INVENTORY_SLOT_CAPACITY,
     }
 
 

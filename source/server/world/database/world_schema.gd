@@ -243,6 +243,12 @@ static func _migration_v11(db) -> void:
 		db.query("ALTER TABLE death_bags ADD COLUMN state TEXT NOT NULL DEFAULT 'floating';")
 	if not _column_exists(db, "death_bags", "sunk_at_ms"):
 		db.query("ALTER TABLE death_bags ADD COLUMN sunk_at_ms INTEGER NOT NULL DEFAULT 0;")
+	# Existing PoC-02 bags predate lifecycle timing; restart their lifecycle at migration
+	# so they are not immediately sunk when PoC-03 is first enabled.
+	db.query_with_bindings(
+		"UPDATE death_bags SET state='floating', sunk_at_ms=0, created_at_ms=?;",
+		[int(Time.get_unix_time_from_system() * 1000.0)]
+	)
 	db.query("CREATE INDEX IF NOT EXISTS idx_death_bags_state ON death_bags(state, sunk_at_ms);")
 
 

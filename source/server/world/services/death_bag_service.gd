@@ -303,6 +303,24 @@ func tick_lifecycle() -> void:
             _broadcast_remove(instance_name, bag_id)
 
 
+func force_sink_latest(instance_name: String) -> Dictionary:
+    if instance_name.is_empty():
+        return {"ok": false, "reason": "instance_required"}
+
+    db.query_with_bindings(
+        "SELECT bag_id FROM death_bags WHERE instance_name=? ORDER BY bag_id DESC LIMIT 1;",
+        [instance_name]
+    )
+    if db.query_result.is_empty():
+        return {"ok": false, "reason": "not_found"}
+
+    var bag_id := int(db.query_result[0].get("bag_id", 0))
+    if bag_id <= 0:
+        return {"ok": false, "reason": "not_found"}
+
+    return force_sink(bag_id)
+
+
 func force_sink(bag_id: int) -> Dictionary:
     var bag := _load_bag(bag_id)
     if bag.is_empty():

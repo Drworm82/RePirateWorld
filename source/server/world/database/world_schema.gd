@@ -223,16 +223,16 @@ static func _migration_v9(db) -> void:
 ## v10: PirateWorld PoC-01 physical Death Bags. Each bag is a persistent world
 ## entity snapshot: map, position, owner and unsecured inventory contents.
 static func _migration_v10(db) -> void:
-\t_create_table_if_missing(db, "death_bags", {
-\t\t"bag_id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
-\t\t"instance_name": {"data_type": "text", "not_null": true},
-\t\t"x": {"data_type": "real", "not_null": true},
-\t\t"y": {"data_type": "real", "not_null": true},
-\t\t"owner_id": {"data_type": "int", "not_null": true},
-\t\t"contents_json": {"data_type": "text", "not_null": true},
-\t\t"created_at_ms": {"data_type": "int", "not_null": true}
-\t})
-\tdb.query("CREATE INDEX IF NOT EXISTS idx_death_bags_instance ON death_bags(instance_name, bag_id);")
+	_create_table_if_missing(db, "death_bags", {
+		"bag_id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
+		"instance_name": {"data_type": "text", "not_null": true},
+		"x": {"data_type": "real", "not_null": true},
+		"y": {"data_type": "real", "not_null": true},
+		"owner_id": {"data_type": "int", "not_null": true},
+		"contents_json": {"data_type": "text", "not_null": true},
+		"created_at_ms": {"data_type": "int", "not_null": true}
+	})
+	db.query("CREATE INDEX IF NOT EXISTS idx_death_bags_instance ON death_bags(instance_name, bag_id);")
 
 
 static func _column_exists(db, table: String, column: String) -> bool:

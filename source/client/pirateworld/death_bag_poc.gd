@@ -83,6 +83,8 @@ func _on_bag_spawn(payload: Dictionary) -> void:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	node.add_child(label)
 	node.global_position = payload.get("position", Vector2.ZERO)
+	node.set_meta("owner_name", owner_name)
+	node.set_meta("state", state)
 	instance.instance_map.add_child(node)
 	_bags[bag_id] = node
 
@@ -95,17 +97,14 @@ func _on_bag_state(payload: Dictionary) -> void:
 	if not is_instance_valid(node):
 		return
 	var state := str(payload.get("state", "floating"))
-	var owner_name := "Desconocido"
+	var owner_name := str(node.get_meta("owner_name", "Desconocido"))
+	node.set_meta("state", state)
 	var label := node.get_node_or_null("Label") as Label
 	if label != null:
-		var current_text := label.text
-		var prefix := "Mochila de "
-		if current_text.begins_with(prefix):
-			owner_name = current_text.trim_prefix(prefix)
 		if state == "sunk":
-			label.text = "Mochila hundida de %s" % owner_name
+			label.text = ("Mochila hundida de %s" % owner_name) + " [#%d]" % bag_id
 		else:
-			label.text = "Mochila de %s" % owner_name
+			label.text = ("Mochila de %s" % owner_name) + " [#%d]" % bag_id
 	if _opened_bag_id == bag_id:
 		_close_loot_window()
 
@@ -148,6 +147,12 @@ func _try_pickup(instance: InstanceClient) -> void:
 	if nearest_id <= 0:
 		Toaster.toast("No hay una Death Bag cerca.")
 		return
+	var bag_node: Node2D = _bags[nearest_id]
+	var bag_state := str(bag_node.get_meta("state", "floating"))
+	if bag_state == "sunk":
+		_open_sunk_access_window(instance, nearest_id, bag_node)
+		return
+
 	var result: Array = await Client.request_data_await(&"death_bag.open", {"bag_id": nearest_id}, instance.name)
 	if result.size() < 2 or result[1] != OK:
 		return
@@ -156,10 +161,157 @@ func _try_pickup(instance: InstanceClient) -> void:
 		match str(payload.get("reason", "")):
 			"in_use": Toaster.toast("La mochila está siendo saqueada.")
 			"too_far": Toaster.toast("La mochila está demasiado lejos.")
-			"sunk": Toaster.toast("La mochila está hundida.")
 			_: Toaster.toast("No se pudo abrir la mochila.")
 		return
 	_open_loot_window(instance, payload)
+
+
+func _open_sunk_access_window(instance: InstanceClient, bag_id: int, bag_node: Node2D) -> void:
+	var window := Window.new()
+	window.name = "DeathBagSunkAccessWindow"
+	window.title = "Restos sumergidos"
+	window.size = Vector2i(360, 240)
+	window.close_requested.connect(func(): window.queue_free())
+
+	var root := VBoxContainer.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 10)
+	window.add_child(root)
+
+	var title := Label.new()
+	title.text = "Mochila hundida de %s" % str(bag_node.get_meta("owner_name", "Desconocido"))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(title)
+
+	var info := Label.new()
+	info.text = "Los restos están sumergidos.\nAcceder requiere un anuncio en producción."
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	root.add_child(info)
+
+	var access := Button.new()
+	access.text = "ACCEDER — VER ANUNCIO"
+	access.custom_minimum_size = Vector2(0, 48)
+	access.pressed.connect(_sunk_access.bind(instance, bag_id, window))
+	root.add_child(access)
+
+	var close := Button.new()
+	close.text = "Cerrar"
+	close.pressed.connect(window.queue_free)
+	root.add_child(close)
+
+	add_child(window)
+	window.popup_centered()
+
+
+func _sunk_access(instance: InstanceClient, bag_id: int, window: Window) -> void:
+	var result: Array = await Client.request_data_await(&"death_bag.sunk_open", {"bag_id": bag_id}, instance.name)
+	if result.size() < 2 or result[1] != OK:
+		return
+	var payload: Dictionary = result[0]
+	if not bool(payload.get("ok", false)):
+		match str(payload.get("reason", "")):
+			"in_use": Toaster.toast("La mochila está siendo saqueada.")
+			"too_far": Toaster.toast("La mochila está demasiado lejos.")
+			"not_sunk": Toaster.toast("La mochila ya no está hundida.")
+			_: Toaster.toast("No se pudo acceder a los restos.")
+		window.queue_free()
+		return
+	window.queue_free()
+	_open_sunk_loot_window(instance, payload)
+
+
+func _open_sunk_loot_window(instance: InstanceClient, payload: Dictionary) -> void:
+	_close_loot_window()
+	_opened_bag_id = int(payload.get("bag_id", 0))
+	var window := Window.new()
+	window.name = "DeathBagLootWindow"
+	window.title = "Restos de %s" % str(payload.get("owner_name", "Desconocido"))
+	window.size = Vector2i(360, 420)
+	window.position = Vector2i(120, 120)
+	window.close_requested.connect(_close_loot_window)
+	var root := VBoxContainer.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 8)
+	window.add_child(root)
+
+	var title := Label.new()
+	title.text = "Mochila hundida de %s" % str(payload.get("owner_name", "Desconocido"))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(title)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 300)
+	root.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.name = "LootList"
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+
+	var contents: Dictionary = payload.get("contents", {})
+	if contents.is_empty():
+		var empty := Label.new()
+		empty.text = "No queda nada en los restos."
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		list.add_child(empty)
+
+	for slot_uid in contents:
+		var slot = contents[slot_uid]
+		if not slot is Dictionary:
+			continue
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = "ID %d × %d" % [int(slot.get("id", 0)), int(slot.get("a", 0))]
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var take := Button.new()
+		take.text = "Tomar"
+		take.pressed.connect(_sunk_loot_slot.bind(instance.name, _opened_bag_id, str(slot_uid)))
+		row.add_child(take)
+		list.add_child(row)
+
+	var actions := HBoxContainer.new()
+	root.add_child(actions)
+	var loot_all := Button.new()
+	loot_all.text = "LOOT ALL"
+	loot_all.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	loot_all.pressed.connect(_sunk_loot_all.bind(instance.name, _opened_bag_id))
+	actions.add_child(loot_all)
+	var close := Button.new()
+	close.text = "Cerrar"
+	close.pressed.connect(_close_loot_window)
+	actions.add_child(close)
+
+	add_child(window)
+	window.popup_centered()
+
+
+func _sunk_loot_slot(instance_name: String, bag_id: int, slot_uid: String) -> void:
+	var result: Array = await Client.request_data_await(&"death_bag.sunk_loot", {"bag_id": bag_id, "slot_uid": slot_uid}, instance_name)
+	if result.size() < 2 or result[1] != OK:
+		return
+	var payload: Dictionary = result[0]
+	if not bool(payload.get("ok", false)):
+		Toaster.toast("No se pudo recuperar ese objeto.")
+		return
+	if bool(payload.get("contents", {}).is_empty()):
+		_close_loot_window()
+		return
+	_close_loot_window()
+	var refreshed: Array = await Client.request_data_await(&"death_bag.sunk_open", {"bag_id": bag_id}, instance_name)
+	if refreshed.size() >= 2 and refreshed[1] == OK and bool(refreshed[0].get("ok", false)):
+		_open_sunk_loot_window(InstanceClient.current, refreshed[0])
+
+
+func _sunk_loot_all(instance_name: String, bag_id: int) -> void:
+	var result: Array = await Client.request_data_await(&"death_bag.sunk_loot_all", {"bag_id": bag_id}, instance_name)
+	if result.size() < 2 or result[1] != OK:
+		return
+	if bool(result[0].get("ok", false)):
+		_close_loot_window()
+		Toaster.toast("Recuperación completa.")
+	else:
+		Toaster.toast("No se pudo recuperar el contenido.")
 
 
 func _open_loot_window(instance: InstanceClient, payload: Dictionary) -> void:

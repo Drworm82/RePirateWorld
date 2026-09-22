@@ -2,7 +2,7 @@ extends RefCounted
 class_name WorldSchema
 
 
-static func ensure_schema(db: SQLite) -> void:
+static func ensure_schema(db) -> void:
 	_create_table_if_missing(db, "meta", {
 		"key": {"data_type": "text", "primary_key": true, "not_null": true},
 		"value": {"data_type": "text", "not_null": true}
@@ -41,7 +41,7 @@ static func ensure_schema(db: SQLite) -> void:
 		_set_schema_version(db, 10)
 
 
-static func _migration_v1(db: SQLite) -> void:
+static func _migration_v1(db) -> void:
 	_create_table_if_missing(db, "accounts", {
 		"account_name": {"data_type": "text", "primary_key": true, "not_null": true}
 	})
@@ -131,7 +131,7 @@ static func _migration_v1(db: SQLite) -> void:
 ## v2: per-player block list. Stored as a JSON-encoded PackedInt64Array in
 ## the players row, mirroring how friends_json works. Idempotent so it's safe
 ## if a fresh DB already created the column via a future migration_v1 edit.
-static func _migration_v2(db: SQLite) -> void:
+static func _migration_v2(db) -> void:
 	if not _column_exists(db, "players", "blocked_ids_json"):
 		db.query("ALTER TABLE players ADD COLUMN blocked_ids_json TEXT NOT NULL DEFAULT '[]';")
 
@@ -139,7 +139,7 @@ static func _migration_v2(db: SQLite) -> void:
 ## v3: weapon mastery. One JSON blob per player: {"masteries": {category ->
 ## {"level", "xp", "spent"}}, "loadout": {category -> node_id}}. See
 ## docs/mastery.md.
-static func _migration_v3(db: SQLite) -> void:
+static func _migration_v3(db) -> void:
 	if not _column_exists(db, "players", "mastery_json"):
 		db.query("ALTER TABLE players ADD COLUMN mastery_json TEXT NOT NULL DEFAULT '{}';")
 
@@ -147,7 +147,7 @@ static func _migration_v3(db: SQLite) -> void:
 ## v4: soft dungeon lockout. One JSON blob per player: {dungeon_key -> unix-seconds
 ## of the last completion reward}. A re-clear inside the dungeon's window grants no
 ## reward (you can still run it to help). Added via ALTER — no DB wipe needed.
-static func _migration_v4(db: SQLite) -> void:
+static func _migration_v4(db) -> void:
 	if not _column_exists(db, "players", "dungeon_lockouts_json"):
 		db.query("ALTER TABLE players ADD COLUMN dungeon_lockouts_json TEXT NOT NULL DEFAULT '{}';")
 
@@ -155,7 +155,7 @@ static func _migration_v4(db: SQLite) -> void:
 ## v5: owned skins for the wardrobe. JSON array of skin ids the player has purchased (the
 ## equipped one is players.skin_id). Added via ALTER — no DB wipe. Defaults to '[]';
 ## existing players backfill their current skin_id on load (see _row_to_player).
-static func _migration_v5(db: SQLite) -> void:
+static func _migration_v5(db) -> void:
 	if not _column_exists(db, "players", "owned_skins_json"):
 		db.query("ALTER TABLE players ADD COLUMN owned_skins_json TEXT NOT NULL DEFAULT '[]';")
 
@@ -163,7 +163,7 @@ static func _migration_v5(db: SQLite) -> void:
 ## v6: per-character redeemed codes (see docs/redeem_codes.md). JSON array of
 ## upper-cased code strings the character has already claimed. Added via ALTER —
 ## no DB wipe. Defaults to '[]'.
-static func _migration_v6(db: SQLite) -> void:
+static func _migration_v6(db) -> void:
 	if not _column_exists(db, "players", "redeemed_codes_json"):
 		db.query("ALTER TABLE players ADD COLUMN redeemed_codes_json TEXT NOT NULL DEFAULT '[]';")
 
@@ -172,7 +172,7 @@ static func _migration_v6(db: SQLite) -> void:
 ## means broadcast to everyone in this world); `mail_state` holds per-player
 ## read/claimed/deleted flags, created lazily. Two tables so a broadcast is one
 ## row with per-player state. Added via _create_table_if_missing — no DB wipe.
-static func _migration_v7(db: SQLite) -> void:
+static func _migration_v7(db) -> void:
 	_create_table_if_missing(db, "mail", {
 		"mail_id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
 		"recipient_id": {"data_type": "int", "not_null": true}, # 0 = broadcast to all in this world
@@ -199,7 +199,7 @@ static func _migration_v7(db: SQLite) -> void:
 ## add_guild_log, which also prunes each guild to its newest rows. Names are
 ## snapshotted at write time so the log stays a historical record even if a
 ## player renames. Added via _create_table_if_missing — no DB wipe.
-static func _migration_v8(db: SQLite) -> void:
+static func _migration_v8(db) -> void:
 	_create_table_if_missing(db, "guild_log", {
 		"log_id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
 		"guild_id": {"data_type": "int", "not_null": true},
@@ -215,14 +215,14 @@ static func _migration_v8(db: SQLite) -> void:
 ## v9: wardstones — biome-progression keys (docs/wardstones.md). One JSON array
 ## of earned wardstone slugs per character ("woodland", "fungus_cave", ...);
 ## character-wide by design (no account ledger). ADD COLUMN — no DB wipe.
-static func _migration_v9(db: SQLite) -> void:
+static func _migration_v9(db) -> void:
 	if not _column_exists(db, "players", "wardstones_json"):
 		db.query("ALTER TABLE players ADD COLUMN wardstones_json TEXT NOT NULL DEFAULT '[]';")
 
 
 ## v10: PirateWorld PoC-01 physical Death Bags. Each bag is a persistent world
 ## entity snapshot: map, position, owner and unsecured inventory contents.
-static func _migration_v10(db: SQLite) -> void:
+static func _migration_v10(db) -> void:
 \t_create_table_if_missing(db, "death_bags", {
 \t\t"bag_id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
 \t\t"instance_name": {"data_type": "text", "not_null": true},
@@ -235,15 +235,15 @@ static func _migration_v10(db: SQLite) -> void:
 \tdb.query("CREATE INDEX IF NOT EXISTS idx_death_bags_instance ON death_bags(instance_name, bag_id);")
 
 
-static func _column_exists(db: SQLite, table: String, column: String) -> bool:
+static func _column_exists(db, table: String, column: String) -> bool:
 	db.query("PRAGMA table_info(%s);" % table)
-	for row: Dictionary in db.query_result:
+	for row in db.query_result:
 		if str(row.get("name", "")) == column:
 			return true
 	return false
 
 
-static func _create_table_if_missing(db: SQLite, table: String, dict: Dictionary) -> void:
+static func _create_table_if_missing(db, table: String, dict: Dictionary) -> void:
 	db.query_with_bindings(
 		"SELECT name FROM sqlite_master WHERE type='table' AND name=?;",
 		[table]
@@ -253,7 +253,7 @@ static func _create_table_if_missing(db: SQLite, table: String, dict: Dictionary
 		db.create_table(table, dict)
 
 
-static func _get_schema_version(db: SQLite) -> int:
+static func _get_schema_version(db) -> int:
 	db.query_with_bindings("SELECT value FROM meta WHERE key=?;", ["schema_version"])
 	if db.query_result.is_empty():
 		return 0
@@ -262,7 +262,7 @@ static func _get_schema_version(db: SQLite) -> int:
 	return int(row.get("value", "0"))
 
 
-static func _set_schema_version(db: SQLite, v: int) -> void:
+static func _set_schema_version(db, v: int) -> void:
 	db.query_with_bindings(
 		"INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?);",
 		["schema_version", str(v)]

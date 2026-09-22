@@ -1,4 +1,3 @@
-class_name DeathBagService
 extends RefCounted
 
 ## PirateWorld PoC-01: persistent physical loot.

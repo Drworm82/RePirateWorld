@@ -30,10 +30,10 @@ func execute(args: PackedStringArray, peer_id: int, server_instance: ServerInsta
 	var names: Array = commands.keys()
 	names.sort()
 	var lines: PackedStringArray = []
-	for command_name: String in names:
-		var listed_command: ChatCommand = commands[command_name]
+	for command_key: String in names:
+		var listed_command: ChatCommand = commands[command_key]
 		if CommandPermissions.can_run(listed_command, player, server_instance):
-			var entry: String = "/" + command_name
+			var entry: String = "/" + command_key
 			if not listed_command.command_alias.is_empty():
 				entry += " (" + ", ".join(listed_command.command_alias) + ")"
 			lines.append(entry)

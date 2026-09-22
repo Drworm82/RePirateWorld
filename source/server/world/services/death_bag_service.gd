@@ -223,6 +223,10 @@ func loot_all(peer_id, instance, bag_id):
         _release_lock(bag_id)
         return {"ok": false, "reason": "not_found"}
 
+    if str(bag.get("state", STATE_FLOATING)) != STATE_FLOATING:
+        _release_lock(bag_id)
+        return {"ok": false, "reason": "sunk"}
+
     if player.global_position.distance_to(bag.position) > PICKUP_DISTANCE:
         _release_lock(bag_id)
         return {"ok": false, "reason": "too_far"}

@@ -18,6 +18,7 @@ func _ready() -> void:
 	Client.subscribe(&"pirateworld.death_bag.spawn", _on_bag_spawn)
 	Client.subscribe(&"pirateworld.death_bag.remove", _on_bag_remove)
 	Client.subscribe(&"pirateworld.death_bag.changed", _on_bag_changed)
+	Client.subscribe(&"pirateworld.death_bag.state", _on_bag_state)
 	call_deferred("_refresh_instance")
 
 
@@ -83,6 +84,29 @@ func _on_bag_spawn(payload: Dictionary) -> void:
 	_bags[bag_id] = node
 
 
+func _on_bag_state(payload: Dictionary) -> void:
+	var bag_id: int = int(payload.get("bag_id", 0))
+	if bag_id <= 0 or not _bags.has(bag_id):
+		return
+	var node: Node2D = _bags[bag_id]
+	if not is_instance_valid(node):
+		return
+	var state := str(payload.get("state", "floating"))
+	var owner_name := "Desconocido"
+	var label := node.get_node_or_null("Label") as Label
+	if label != null:
+		var current_text := label.text
+		var prefix := "Mochila de "
+		if current_text.begins_with(prefix):
+			owner_name = current_text.trim_prefix(prefix)
+		if state == "sunk":
+			label.text = "Mochila hundida de %s" % owner_name
+		else:
+			label.text = "Mochila de %s" % owner_name
+	if _opened_bag_id == bag_id:
+		_close_loot_window()
+
+
 func _on_bag_changed(payload: Dictionary) -> void:
 	if _opened_bag_id <= 0 or int(payload.get("bag_id", 0)) != _opened_bag_id:
 		return
@@ -129,6 +153,7 @@ func _try_pickup(instance: InstanceClient) -> void:
 		match str(payload.get("reason", "")):
 			"in_use": Toaster.toast("La mochila está siendo saqueada.")
 			"too_far": Toaster.toast("La mochila está demasiado lejos.")
+			"sunk": Toaster.toast("La mochila está hundida.")
 			_: Toaster.toast("No se pudo abrir la mochila.")
 		return
 	_open_loot_window(instance, payload)

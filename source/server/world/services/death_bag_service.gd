@@ -9,8 +9,6 @@ const FLOATING_DURATION_MS: int = 2 * 60 * 1000
 const SUNKEN_DURATION_MS: int = 5 * 60 * 1000
 const STATE_FLOATING: String = "floating"
 const STATE_SUNK: String = "sunk"
-# PoC capacity: 36 inventory slots, matching the current 6-column bag presentation.
-const INVENTORY_SLOT_CAPACITY: int = 36
 
 var db
 var world_server
@@ -97,13 +95,6 @@ func list_for_instance(instance_name):
     return result
 
 
-func _inventory_capacity_payload(inventory: Dictionary) -> Dictionary:
-    return {
-        "inventory_slots_used": inventory.size(),
-        "inventory_slot_capacity": INVENTORY_SLOT_CAPACITY,
-    }
-
-
 func open(peer_id, instance, bag_id):
     if instance == null or bag_id <= 0:
         return {"ok": false, "reason": "bad_args"}
@@ -136,8 +127,6 @@ func open(peer_id, instance, bag_id):
         "owner_name": bag.owner_name,
         "state": bag.state,
         "contents": bag.contents,
-        "inventory_slots_used": player.player_resource.inventory.size(),
-        "inventory_slot_capacity": INVENTORY_SLOT_CAPACITY,
     }
 
 
@@ -170,8 +159,6 @@ func open_sunk(peer_id, instance, bag_id: int) -> Dictionary:
         "state": bag.state,
         "contents": bag.contents,
         "access": "simulated_ad",
-        "inventory_slots_used": player.player_resource.inventory.size(),
-        "inventory_slot_capacity": INVENTORY_SLOT_CAPACITY,
     }
 
 
@@ -637,32 +624,32 @@ func _add_item(inventory: Dictionary, item_id: int, amount: int) -> int:
     var stack_limit := _item_stack_limit(item_id)
     var remaining := amount
 
-    for slot_uid in inventory.keys():
-        var slot = inventory[slot_uid]
-        if not slot is Dictionary or int(slot.get("id", 0)) != item_id:
-            continue
-        var current := int(slot.get("a", 0))
-        if stack_limit <= 1:
-            continue
-        var room: int = amount if stack_limit <= 0 else maxi(0, stack_limit - current)
-        if room <= 0:
-            continue
-        var moved: int = mini(remaining, room)
-        slot["a"] = current + moved
-        inventory[slot_uid] = slot
-        remaining -= moved
-        if remaining <= 0:
-            return amount
+    # Match the normal inventory model: stack_limit == 0 means unlimited stacking;
+    # values > 1 are capped stacks; <= 1 means one item per slot.
+    if stack_limit == 0 or stack_limit > 1:
+        for slot_uid in inventory.keys():
+            var slot = inventory[slot_uid]
+            if not slot is Dictionary or int(slot.get("id", 0)) != item_id:
+                continue
+            var current := int(slot.get("a", 0))
+            var room: int = remaining if stack_limit == 0 else maxi(0, stack_limit - current)
+            if room <= 0:
+                continue
+            var moved: int = mini(remaining, room)
+            slot["a"] = current + moved
+            inventory[slot_uid] = slot
+            remaining -= moved
+            if remaining <= 0:
+                return amount
 
-    while remaining > 0 and inventory.size() < INVENTORY_SLOT_CAPACITY:
-        var new_slot_id := "death_bag_" + str(Time.get_ticks_usec()) + "_" + str(inventory.size())
-        var moved: int = remaining if stack_limit <= 1 or stack_limit <= 0 else mini(remaining, stack_limit)
-        inventory[new_slot_id] = {
+    while remaining > 0:
+        var moved: int = remaining if stack_limit == 0 or stack_limit <= 1 else mini(remaining, stack_limit)
+        inventory[Inventory.next_uid(inventory)] = {
             "id": item_id,
             "a": moved,
         }
         remaining -= moved
 
-    return amount - remaining
+    return amount
 
 

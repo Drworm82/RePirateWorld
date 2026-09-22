@@ -8,6 +8,9 @@ extends BaseMultiplayerEndpoint
 @export var world_clock: WorldClock
 @export var chat_service: ChatService
 
+## PirateWorld PoC-01: persistent physical loot.
+var death_bag_service: DeathBagService
+
 ## The full-DB backup (WAL checkpoint TRUNCATE + whole-file copy) is the heaviest
 ## periodic op and its cost grows with DB size, so it runs on a MULTIPLE of the save
 ## interval instead of every save. Player saves still flush every 5 min (cheap per
@@ -46,6 +49,7 @@ func start_world_server() -> void:
 
 	chat_service.setup_with_db(database.db)
 	$InstanceManager.start_instance_manager()
+	death_bag_service = DeathBagService.new(database.db, self)
 
 	# Periodic save + backup. 5 minutes balances "low data loss on crash"
 	# against "no churning the disk every second." backup_database keeps the

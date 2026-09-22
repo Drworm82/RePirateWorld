@@ -350,8 +350,15 @@ func _sunk_loot_all(instance_name: String, bag_id: int) -> void:
 	if result.size() < 2 or result[1] != OK:
 		return
 	if bool(result[0].get("ok", false)):
-		_close_loot_window()
-		Toaster.toast("Recuperación completa.")
+		if bool(result[0].get("emptied", false)):
+			_close_loot_window()
+			Toaster.toast("Recuperación completa.")
+		else:
+			_close_loot_window()
+			var refreshed: Array = await Client.request_data_await(&"death_bag.sunk_open", {"bag_id": bag_id}, instance_name)
+			if refreshed.size() >= 2 and refreshed[1] == OK and bool(refreshed[0].get("ok", false)):
+				_open_sunk_loot_window(InstanceClient.current, refreshed[0])
+			Toaster.toast("Se recuperó lo que cabía en el inventario.")
 	else:
 		match str(result[0].get("reason", "")):
 			"inventory_full": Toaster.toast("No tienes espacio en el inventario.")
@@ -437,8 +444,15 @@ func _loot_all(instance_name: String, bag_id: int, window: Window) -> void:
 	if result.size() < 2 or result[1] != OK:
 		return
 	if bool(result[0].get("ok", false)):
-		_close_loot_window()
-		Toaster.toast("Loot All completado.")
+		if bool(result[0].get("emptied", false)):
+			_close_loot_window()
+			Toaster.toast("Loot All completado.")
+		else:
+			_close_loot_window()
+			var refreshed: Array = await Client.request_data_await(&"death_bag.open", {"bag_id": bag_id}, instance_name)
+			if refreshed.size() >= 2 and refreshed[1] == OK and bool(refreshed[0].get("ok", false)):
+				_open_loot_window(InstanceClient.current, refreshed[0])
+			Toaster.toast("Loot All tomó lo que cabía en el inventario.")
 	else:
 		match str(result[0].get("reason", "")):
 			"inventory_full": Toaster.toast("No tienes espacio en el inventario.")

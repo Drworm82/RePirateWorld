@@ -42,24 +42,42 @@ static func set_pinned(inventory: Dictionary, slot_uid: int, pinned: bool) -> bo
 
 
 ## Add an item to the inventory, stacking when the item allows it.
-static func add_item(inventory: Dictionary, item_id: int, amount: int = 1) -> void:
+static func add_item(inventory: Dictionary, item_id: int, amount: int = 1) -> int:
 	if item_id <= 0 or amount <= 0:
-		return
+		return 0
 
-	# `as Item` so a bad index entry (e.g. an id pointing at a PackedScene) yields
-	# null instead of crashing the server on the strict assignment.
 	var item: Item = ContentRegistryHub.load_by_id(&"items", item_id) as Item
-	# Unknown items default to non-stackable (own slot) to stay safe.
-	var stackable: bool = item != null and item.is_stackable()
+	if item == null:
+		return 0
 
-	if stackable:
-		for slot_uid in inventory:
-			if int(inventory[slot_uid].get("id", 0)) == item_id:
-				inventory[slot_uid]["a"] = int(inventory[slot_uid].get("a", 0)) + amount
-				return
-		# TODO: respect stack_limit by splitting into multiple slots when needed.
+	var stack_limit: int = int(item.stack_limit)
+	var remaining: int = amount
 
-	inventory[next_uid(inventory)] = {"id": item_id, "a": amount}
+	# stack_limit == 0 means unlimited stacking. Values > 1 are capped stacks;
+	# values <= 1 are treated as non-stackable.
+	if stack_limit == 0 or stack_limit > 1:
+		for slot_uid in inventory.keys():
+			var slot: Dictionary = inventory[slot_uid]
+			if int(slot.get("id", 0)) != item_id:
+				continue
+			var current: int = int(slot.get("a", 0))
+			var room: int = remaining if stack_limit == 0 else maxi(0, stack_limit - current)
+			if room <= 0:
+				continue
+			var moved: int = mini(remaining, room)
+			slot["a"] = current + moved
+			inventory[slot_uid] = slot
+			remaining -= moved
+			if remaining <= 0:
+				return amount
+
+	while remaining > 0:
+		var moved: int = remaining if stack_limit == 0 or stack_limit <= 1 else mini(remaining, stack_limit)
+		inventory[next_uid(inventory)] = {"id": item_id, "a": moved}
+		remaining -= moved
+
+	return amount
+
 
 
 ## Remove up to `amount` from a slot, erasing the slot when it empties.

@@ -258,9 +258,11 @@ func loot_all_sunk(peer_id, instance, bag_id: int) -> Dictionary:
     if bag.is_empty():
         _release_lock(bag_id)
         return {"ok": false, "reason": "not_found"}
+
     if str(bag.get("state", STATE_FLOATING)) != STATE_SUNK:
         _release_lock(bag_id)
         return {"ok": false, "reason": "not_sunk"}
+
     if instance == null or player_distance(instance, peer_id, bag) > PICKUP_DISTANCE:
         _release_lock(bag_id)
         return {"ok": false, "reason": "too_far"}
@@ -273,8 +275,6 @@ func loot_all_sunk(peer_id, instance, bag_id: int) -> Dictionary:
     var contents: Dictionary = bag.contents
     var moved_total := 0
     for slot_uid in contents.keys():
-        if not contents.has(slot_uid):
-            continue
         var slot = contents[slot_uid]
         if not slot is Dictionary:
             continue
@@ -282,6 +282,7 @@ func loot_all_sunk(peer_id, instance, bag_id: int) -> Dictionary:
         var amount := int(slot.get("a", 0))
         if item_id <= 0 or amount <= 0:
             continue
+
         var moved := _add_item(player.player_resource.inventory, item_id, amount)
         moved_total += moved
         var remaining := amount - moved
@@ -665,7 +666,12 @@ func _add_item(inventory: Dictionary, item_id: int, amount: int) -> int:
     while remaining > 0 and inventory.size() < INVENTORY_SLOT_CAPACITY:
         var new_slot_id := "death_bag_" + str(Time.get_ticks_usec()) + "_" + str(inventory.size())
         var moved := remaining if stack_limit <= 1 or stack_limit <= 0 else min(remaining, stack_limit)
-        inventory[new_slot_id] = {"id": item_id, "a": moved}
+        inventory[new_slot_id] = {
+            "id": item_id,
+            "a": moved,
+        }
         remaining -= moved
 
     return amount - remaining
+
+

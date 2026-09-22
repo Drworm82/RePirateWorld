@@ -22,9 +22,13 @@ var default_instance: InstanceResource
 
 @export var world_server: WorldServer
 
+## PirateWorld PoC-01: gameplay service owned by the instance layer, not WorldServer.
+var death_bag_service: DeathBagService
+
 
 func start_instance_manager() -> void:
 	ServerInstance.world_server = world_server
+	death_bag_service = DeathBagService.new(world_server.database.db, world_server)
 	
 	setup_global_commands_and_roles()
 

@@ -121,7 +121,8 @@ func _try_pickup(instance: InstanceClient) -> void:
 \t\t\t"too_far": Toaster.toast("That Death Bag is too far away.")
 \t\t\t"not_found": Toaster.toast("That Death Bag is already gone.")
 \t\t\t_: Toaster.toast("Couldn't recover the Death Bag.")
-\nfunc _clear_bags() -> void:
+
+func _clear_bags() -> void:
 \tfor bag_id: int in _bags:
 \t\tvar node: Node2D = _bags[bag_id]
 \t\tif is_instance_valid(node):

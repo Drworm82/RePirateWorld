@@ -11,8 +11,6 @@ const STATE_FLOATING: String = "floating"
 const STATE_SUNK: String = "sunk"
 # PoC capacity: 36 inventory slots, matching the current 6-column bag presentation.
 const INVENTORY_SLOT_CAPACITY: int = 36
-# PoC capacity: 36 inventory slots, matching the current 6-column bag presentation.
-const INVENTORY_SLOT_CAPACITY: int = 36
 
 var db
 var world_server
@@ -623,13 +621,6 @@ func _broadcast(instance, message_type, payload):
 
     for peer_id in instance.connected_peers:
         world_server.data_push.rpc_id(peer_id, message_type, payload)
-
-
-func _item_stack_limit(item_id: int) -> int:
-    var item: Item = ContentRegistryHub.load_by_id(&"items", item_id) as Item
-    if item == null:
-        return 1
-    return int(item.stack_limit)
 
 
 func _item_stack_limit(item_id: int) -> int:

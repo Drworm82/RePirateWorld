@@ -56,9 +56,27 @@ func _refresh_instance() -> void:
 	var payload: Dictionary = result[0]
 	if not bool(payload.get("ok", false)):
 		return
-	_clear_bags()
+
+	# Reconcile server state instead of destroying/recreating every client node.
+	var server_ids: Dictionary[int, bool] = {}
 	for bag: Dictionary in payload.get("bags", []):
+		var bag_id := int(bag.get("bag_id", 0))
+		if bag_id <= 0:
+			continue
+		server_ids[bag_id] = true
 		_on_bag_spawn(bag)
+
+	for bag_id: int in _bags.keys():
+		if not server_ids.has(bag_id):
+			_remove_bag_node(bag_id)
+
+func _remove_bag_node(bag_id: int) -> void:
+	if not _bags.has(bag_id):
+		return
+	var node: Node2D = _bags[bag_id]
+	if is_instance_valid(node):
+		node.queue_free()
+	_bags.erase(bag_id)
 
 
 func _on_bag_spawn(payload: Dictionary) -> void:
@@ -89,9 +107,7 @@ func _on_bag_spawn(payload: Dictionary) -> void:
 
 func _on_bag_remove(payload: Dictionary) -> void:
 	var bag_id := int(payload.get("bag_id", 0))
-	if _bags.has(bag_id):
-		_bags[bag_id].queue_free()
-		_bags.erase(bag_id)
+	_remove_bag_node(bag_id)
 	if _opened_bag_id == bag_id:
 		_close_loot_window()
 

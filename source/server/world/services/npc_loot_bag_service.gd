@@ -26,7 +26,7 @@ func spawn_from_npc(instance, npc: HostileNpc, contents: Dictionary) -> Dictiona
 		ServerLog.error("[NPC_LOOT_BAG] spawn failed: could not resolve ServerInstance from %s" % str(instance.name))
 		return {"ok": false, "reason": "instance_not_found"}
 
-	var instance_name := str(server_instance.name)
+	var instance_name := str(server_instance.instance_resource.instance_name)
 	var bag_id := _next_bag_id
 	_next_bag_id += 1
 
@@ -224,14 +224,14 @@ func clear_instance(instance_name: String) -> void:
 func _get_bag(instance, bag_id: int) -> Dictionary:
 	if instance == null or bag_id <= 0:
 		return {}
-	var instance_name := str(instance.name)
+	var instance_name := str(instance.instance_resource.instance_name)
 	var bags: Dictionary = _bags_by_instance.get(instance_name, {})
 	var bag = bags.get(bag_id, null)
 	return bag if bag is Dictionary else {}
 
 
 func _delete_bag(instance, bag_id: int) -> void:
-	var instance_name := str(instance.name)
+	var instance_name := str(instance.instance_resource.instance_name)
 	var bags: Dictionary = _bags_by_instance.get(instance_name, {})
 	bags.erase(bag_id)
 	_release_lock(bag_id)
@@ -253,7 +253,14 @@ func _public_bag(bag: Dictionary) -> Dictionary:
 func _broadcast(instance, message_type: StringName, payload: Dictionary) -> void:
 	if instance == null or world_server == null:
 		return
-	for peer_id in instance.connected_peers:
+	var peers: PackedInt64Array = instance.connected_peers
+	ServerLog.info("[NPC_LOOT_BAG] broadcast type=%s instance=%s peers=%d bag_id=%d" % [
+		str(message_type),
+		str(instance.instance_resource.instance_name),
+		peers.size(),
+		int(payload.get("bag_id", 0)),
+	])
+	for peer_id in peers:
 		world_server.data_push.rpc_id(peer_id, message_type, payload)
 
 

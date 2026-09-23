@@ -35,6 +35,7 @@ func spawn_from_player(instance, player):
 
     var instance_name = str(instance.instance_resource.instance_name)
     var created_at_ms = int(Time.get_unix_time_from_system() * 1000.0)
+    _diag_db_count("before_insert", instance_name, 0)
 
     db.query_with_bindings(
         "INSERT INTO death_bags(instance_name, x, y, owner_id, contents_json, created_at_ms) VALUES(?, ?, ?, ?, ?, ?);",
@@ -53,7 +54,8 @@ func spawn_from_player(instance, player):
         return {"ok": false, "reason": "database_insert_failed"}
 
     var bag_id = int(db.query_result[0].get("bag_id", 0))
-    ServerLog.info("[DEATH_BAG] database bag created bag_id=%d owner_id=%d" % [bag_id, int(player.player_resource.player_id)])
+    ServerLog.info("[DEATH_BAG] database bag created bag_id=%d owner_id=%d instance=%s" % [bag_id, int(player.player_resource.player_id), instance_name])
+    _diag_db_count("after_insert", instance_name, bag_id)
 
     player.player_resource.inventory.clear()
     world_server.database.save_player(player.player_resource)
@@ -76,6 +78,7 @@ func spawn_from_player(instance, player):
 
 func list_for_instance(instance_name):
     var result = []
+    ServerLog.info("[DEATH_BAG_DIAG] event=list_request instance=%s" % str(instance_name))
 
     db.query_with_bindings(
         "SELECT bag_id, instance_name, x, y, owner_id, contents_json, created_at_ms, state, sunk_at_ms FROM death_bags WHERE instance_name=? ORDER BY bag_id ASC;",
@@ -100,6 +103,7 @@ func list_for_instance(instance_name):
             "sunk_at_ms": int(row.get("sunk_at_ms", 0)),
         })
 
+    ServerLog.info("[DEATH_BAG_DIAG] event=list_result instance=%s result_count=%d" % [str(instance_name), result.size()])
     return result
 
 
@@ -229,7 +233,10 @@ func loot(peer_id, instance, bag_id, slot_uid: String):
     world_server.database.save_player(player.player_resource)
 
     if contents.is_empty():
+        var delete_instance := str(bag.get("instance_name", ""))
+        ServerLog.warn("[DEATH_BAG_DIAG] event=delete reason=emptied bag_id=%d instance=%s" % [bag_id, delete_instance])
         db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
+        _diag_db_count("after_delete_emptied", delete_instance, bag_id)
         _release_lock(bag_id)
         _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
         return {"ok": true, "bag_id": bag_id, "slot_uid": slot_uid, "moved": moved, "remaining": 0, "emptied": true, "contents": {}}
@@ -364,6 +371,22 @@ func loot_all(peer_id, instance, bag_id):
     return {"ok": true, "bag_id": bag_id, "moved": moved_total, "emptied": false, "contents": contents}
 
 
+func _diag_db_count(event: String, instance_name: String, bag_id: int) -> void:
+    db.query_with_bindings(
+        "SELECT COUNT(*) AS total FROM death_bags WHERE instance_name=?;",
+        [instance_name]
+    )
+    var total := 0
+    if not db.query_result.is_empty():
+        total = int(db.query_result[0].get("total", 0))
+    ServerLog.info("[DEATH_BAG_DIAG] event=%s bag_id=%d instance=%s db_count=%d" % [
+        event,
+        bag_id,
+        instance_name,
+        total,
+    ])
+
+
 func _load_bag(bag_id: int) -> Dictionary:
     db.query_with_bindings(
         "SELECT bag_id, instance_name, x, y, owner_id, contents_json, state, sunk_at_ms FROM death_bags WHERE bag_id=?;",
@@ -371,6 +394,7 @@ func _load_bag(bag_id: int) -> Dictionary:
     )
 
     if db.query_result.is_empty():
+        ServerLog.warn("[DEATH_BAG_DIAG] event=load_not_found bag_id=%d" % bag_id)
         return {}
 
     var row = db.query_result[0]

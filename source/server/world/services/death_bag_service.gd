@@ -5,8 +5,9 @@ extends RefCounted
 
 const PICKUP_DISTANCE: float = 96.0
 const ACCESS_TIMEOUT_MS: int = 60_000
-const FLOATING_DURATION_MS: int = 2 * 60 * 1000
-const SUNKEN_DURATION_MS: int = 5 * 60 * 1000
+## Death Bags have no automatic world TTL.
+## Persistence ends only when their contents are fully looted (or an explicit
+## administrative/test action removes them). Visibility is a separate concern.
 const STATE_FLOATING: String = "floating"
 const STATE_SUNK: String = "sunk"
 
@@ -388,29 +389,6 @@ func _load_bag(bag_id: int) -> Dictionary:
         "sunk_at_ms": int(row.get("sunk_at_ms", 0)),
         "contents": contents,
     }
-
-
-func tick_lifecycle() -> void:
-    var now_ms := int(Time.get_unix_time_from_system() * 1000.0)
-    db.query("SELECT bag_id, instance_name, state, created_at_ms, sunk_at_ms FROM death_bags;")
-    for row: Dictionary in db.query_result:
-        var bag_id := int(row.get("bag_id", 0))
-        var instance_name := str(row.get("instance_name", ""))
-        var state := str(row.get("state", STATE_FLOATING))
-        var created_at_ms := int(row.get("created_at_ms", 0))
-        var sunk_at_ms := int(row.get("sunk_at_ms", 0))
-
-        if state == STATE_FLOATING and now_ms - created_at_ms >= FLOATING_DURATION_MS:
-            db.query_with_bindings(
-                "UPDATE death_bags SET state=?, sunk_at_ms=? WHERE bag_id=?;",
-                [STATE_SUNK, now_ms, bag_id]
-            )
-            _release_lock(bag_id)
-            _broadcast_state(instance_name, bag_id, STATE_SUNK)
-        elif state == STATE_SUNK and sunk_at_ms > 0 and now_ms - sunk_at_ms >= SUNKEN_DURATION_MS:
-            db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
-            _release_lock(bag_id)
-            _broadcast_remove(instance_name, bag_id)
 
 
 func force_sink_latest(instance_name: String) -> Dictionary:

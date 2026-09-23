@@ -14,6 +14,7 @@ var _opened_bag_id: int = 0
 
 
 func _ready() -> void:
+	print("[NPC_LOOT_BAG_CLIENT] ready")
 	if not GameMode.is_client():
 		queue_free()
 		return
@@ -44,11 +45,14 @@ func _refresh_instance() -> void:
 		return
 	_instance_name = instance.name
 	_syncing = true
+	print("[NPC_LOOT_BAG_CLIENT] list_request instance=%s" % instance.name)
 	var result: Array = await Client.request_data_await(&"npc_loot_bag.list", {}, instance.name)
 	_syncing = false
 	if result.size() < 2 or result[1] != OK:
+		print("[NPC_LOOT_BAG_CLIENT] list_request failed result=%s" % str(result))
 		return
 	var payload: Dictionary = result[0]
+	print("[NPC_LOOT_BAG_CLIENT] list_result ok=%s bags=%d" % [str(payload.get("ok", false)), (payload.get("bags", []) as Array).size()])
 	if not bool(payload.get("ok", false)):
 		return
 	_clear_bags()
@@ -57,6 +61,7 @@ func _refresh_instance() -> void:
 
 
 func _on_bag_spawn(payload: Dictionary) -> void:
+	print("[NPC_LOOT_BAG_CLIENT] spawn_received bag_id=%d instance=%s current=%s" % [int(payload.get("bag_id", 0)), str(payload.get("instance_name", "")), str(InstanceClient.current.name if InstanceClient.current != null else "<null>")])
 	var bag_id := int(payload.get("bag_id", 0))
 	var instance := InstanceClient.current
 	if bag_id <= 0 or instance == null or instance.instance_map == null:
@@ -79,6 +84,7 @@ func _on_bag_spawn(payload: Dictionary) -> void:
 	node.global_position = payload.get("position", Vector2.ZERO)
 	instance.instance_map.add_child(node)
 	_bags[bag_id] = node
+	print("[NPC_LOOT_BAG_CLIENT] node_created bag_id=%d position=%s map=%s" % [bag_id, str(node.global_position), str(instance.instance_map.name)])
 
 
 func _on_bag_remove(payload: Dictionary) -> void:

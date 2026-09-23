@@ -90,6 +90,7 @@ func perform_action(peer_id: int, action: String) -> Dictionary:
 	if player.is_dead or enemy.is_dead:
 		return {"ok": false, "reason": "combat_already_finished"}
 
+	ServerLog.info("[GROUND_COMBAT] action peer=%d action=%s turn=%s" % [peer_id, action, str(battle.get("turn", ""))])
 	var result: Dictionary
 	match action:
 		"attack":

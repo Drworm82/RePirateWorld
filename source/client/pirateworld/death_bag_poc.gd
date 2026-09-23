@@ -20,6 +20,8 @@ func _ready() -> void:
 	Client.subscribe(&"pirateworld.death_bag.remove", _on_bag_remove)
 	Client.subscribe(&"pirateworld.death_bag.changed", _on_bag_changed)
 	Client.subscribe(&"pirateworld.death_bag.state", _on_bag_state)
+	var npc_loot_bag_bridge = preload("res://source/client/pirateworld/npc_loot_bag_poc.gd").new()
+	add_child(npc_loot_bag_bridge)
 	call_deferred("_refresh_instance")
 
 

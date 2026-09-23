@@ -328,7 +328,10 @@ func loot_all_sunk(peer_id, instance, bag_id: int) -> Dictionary:
     world_server.database.save_player(player.player_resource)
 
     if contents.is_empty():
+        var delete_instance := str(bag.get("instance_name", ""))
+        ServerLog.warn("[DEATH_BAG_DIAG] event=delete reason=emptied bag_id=%d instance=%s" % [bag_id, delete_instance])
         db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
+        _diag_db_count("after_delete_emptied", delete_instance, bag_id)
         _release_lock(bag_id)
         _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
         return {"ok": true, "bag_id": bag_id, "moved": moved_total, "emptied": true, "contents": {}}
@@ -390,7 +393,10 @@ func loot_all(peer_id, instance, bag_id):
     world_server.database.save_player(player.player_resource)
 
     if contents.is_empty():
+        var delete_instance := str(bag.get("instance_name", ""))
+        ServerLog.warn("[DEATH_BAG_DIAG] event=delete reason=emptied bag_id=%d instance=%s" % [bag_id, delete_instance])
         db.query_with_bindings("DELETE FROM death_bags WHERE bag_id=?;", [bag_id])
+        _diag_db_count("after_delete_emptied", delete_instance, bag_id)
         _release_lock(bag_id)
         _broadcast(instance, "pirateworld.death_bag.remove", {"bag_id": bag_id})
         return {"ok": true, "bag_id": bag_id, "moved": moved_total, "emptied": true, "contents": {}}

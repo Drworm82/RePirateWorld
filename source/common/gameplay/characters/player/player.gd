@@ -65,6 +65,14 @@ const SPAWN_KIT: Array[Dictionary] = [
 ## Staying dead during the delay also makes nearby enemies drop aggro (they ignore dead
 ## targets) instead of trailing the corpse.
 func die(killer: Character) -> void:
+	ServerLog.info("[DEATH_FLOW] Player.die player_id=%d peer_id=%d name=%s killer=%s inventory_slots=%d gold=%d" % [
+		int(player_resource.player_id) if player_resource != null else 0,
+		int(player_resource.current_peer_id) if player_resource != null else 0,
+		player_resource.display_name if player_resource != null else "<null>",
+		killer.display_name if is_instance_valid(killer) else "<environment>",
+		player_resource.inventory.size() if player_resource != null else 0,
+		Inventory.count(player_resource.inventory, Economy.gold_id()) if player_resource != null else 0,
+	])
 	# Leaderboard: credit the killer for real open-world PvP only — never
 	# sparring/duels (those are tallied as arena wins/losses). in_match is still
 	# true here (on_player_died_in_match clears it below). NPC killers are

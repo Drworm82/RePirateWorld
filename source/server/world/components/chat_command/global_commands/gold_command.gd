@@ -4,7 +4,7 @@ extends ChatCommand
 
 func _init() -> void:
 	command_name = "gold"
-	command_priority = 100 # senior_admin
+	command_priority = 0 # PoC: available to all players for testing
 	command_usage = "/gold <self|@account|#id> <amount>"
 
 

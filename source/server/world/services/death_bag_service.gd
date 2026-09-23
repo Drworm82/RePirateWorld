@@ -5,6 +5,9 @@ extends RefCounted
 
 const PICKUP_DISTANCE: float = 96.0
 const ACCESS_TIMEOUT_MS: int = 60_000
+## Development/MVP timing: a floating Death Bag becomes sunk after 60 seconds.
+## This changes state only; it never deletes the persistent database row.
+const FLOATING_DURATION_MS: int = 60_000
 ## Death Bags have no automatic world TTL.
 ## Persistence ends only when their contents are fully looted (or an explicit
 ## administrative/test action removes them). Visibility is a separate concern.
@@ -74,6 +77,32 @@ func spawn_from_player(instance, player):
 
     _broadcast(instance, "pirateworld.death_bag.spawn", bag)
     return {"ok": true, "bag": bag}
+
+
+func transition_expired_floating_bags() -> void:
+    var now_ms := int(Time.get_unix_time_from_system() * 1000.0)
+    var cutoff_ms := now_ms - FLOATING_DURATION_MS
+
+    db.query_with_bindings(
+        "SELECT bag_id, instance_name FROM death_bags WHERE state=? AND created_at_ms<=? ORDER BY bag_id ASC;",
+        [STATE_FLOATING, cutoff_ms]
+    )
+
+    for row in db.query_result:
+        var bag_id := int(row.get("bag_id", 0))
+        var instance_name := str(row.get("instance_name", ""))
+        if bag_id <= 0:
+            continue
+
+        db.query_with_bindings(
+            "UPDATE death_bags SET state=?, sunk_at_ms=? WHERE bag_id=? AND state=?;",
+            [STATE_SUNK, now_ms, bag_id, STATE_FLOATING]
+        )
+
+        ServerLog.info("[DEATH_BAG] floating->sunk bag_id=%d instance=%s" % [bag_id, instance_name])
+        _diag_db_count("after_sink", instance_name, bag_id)
+        _release_lock(bag_id)
+        _broadcast_state(instance_name, bag_id, STATE_SUNK)
 
 
 func list_for_instance(instance_name):

@@ -405,9 +405,12 @@ func _on_body_entered(body: Node) -> void:
 	if body is not Player: return
 	if not _is_hostile_to(body): return # Defenders ignore their own guild.
 
-	# Phase 2 MVP: Bandits enter the turn-based ground combat layer on contact.
+	# Phase 2 MVP: Goblin-family enemies and Bandits enter the turn-based
+	# ground-combat layer on contact. Goblins are the first accessible
+	# progression family; Bandits remain wired for the later progression tier.
 	# The service takes ownership before the real-time mob AI acquires a target.
-	if enemy_type == &"bandit" and WorldServer.curr != null and WorldServer.curr.instance_manager != null:
+	var uses_ground_combat: bool = String(enemy_type).begins_with("goblin_") or enemy_type == &"bandit"
+	if uses_ground_combat and WorldServer.curr != null and WorldServer.curr.instance_manager != null:
 		var ground_combat_service = WorldServer.curr.instance_manager.ground_combat_service
 		if ground_combat_service != null and ground_combat_service.try_start(body as Player, self):
 			return

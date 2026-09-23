@@ -29,12 +29,12 @@ static func distribute(npc: HostileNpc, contributors: Dictionary, killer: Charac
 			continue
 		var player: Player = _resolve_player(peer_id)
 		if player != null:
-			_reward(player, npc)
+			_reward(player, npc, grant_loot)
 		rewarded[peer_id] = true
 	if killer_peer > 0 and not rewarded.has(killer_peer):
 		var kp: Player = _resolve_player(killer_peer)
 		if kp != null:
-			_reward(kp, npc)
+			_reward(kp, npc, grant_loot)
 
 
 ## The live Player for a peer (null if they logged off / left), via its current
@@ -49,7 +49,7 @@ static func _resolve_player(peer_id: int) -> Player:
 
 
 ## All of one participant's reward, and the combat.reward push to their client.
-static func _reward(player: Player, npc: HostileNpc) -> void:
+static func _reward(player: Player, npc: HostileNpc, grant_loot: bool) -> void:
 	var resource: PlayerResource = player.player_resource
 	if resource == null:
 		return

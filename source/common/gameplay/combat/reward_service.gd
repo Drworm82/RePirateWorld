@@ -14,7 +14,7 @@ const MIN_DAMAGE_FRACTION: float = 0.1
 
 ## [param contributors] = peer_id -> total damage dealt this life (HostileNpc
 ## tracks it). Server-only.
-static func distribute(npc: HostileNpc, contributors: Dictionary, killer: Character) -> void:
+static func distribute(npc: HostileNpc, contributors: Dictionary, killer: Character, grant_loot: bool = true) -> void:
 	if not GameMode.is_world_server():
 		return
 	if npc.xp_reward <= 0 and (npc.loot == null or npc.loot.is_empty()):
@@ -56,7 +56,7 @@ static func _reward(player: Player, npc: HostileNpc) -> void:
 
 	var level_before: int = resource.level
 	var progress: Dictionary = resource.add_experience(npc.xp_reward)
-	var loot_gained: Array = _roll_loot(npc)
+	var loot_gained: Array = _roll_loot(npc) if grant_loot else []
 	for entry: Dictionary in loot_gained:
 		Inventory.add_item(resource.inventory, int(entry["id"]), int(entry["amount"]))
 		DailyQuestService.on_collect(resource, int(entry["id"]), int(entry["amount"]))
@@ -95,6 +95,10 @@ static func _reward(player: Player, npc: HostileNpc) -> void:
 
 
 ## Rolls each loot entry; returns [{ "id", "amount", "name" }, ...].
+static func roll_loot(npc: HostileNpc) -> Array:
+	return _roll_loot(npc)
+
+
 static func _roll_loot(npc: HostileNpc) -> Array:
 	var out: Array = []
 	for drop: LootDrop in npc.loot:

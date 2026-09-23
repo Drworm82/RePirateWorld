@@ -40,7 +40,8 @@ func spawn_from_npc(instance, npc: HostileNpc, contents: Dictionary) -> Dictiona
 	}
 	if not _bags_by_instance.has(instance_name):
 		_bags_by_instance[instance_name] = {}
-	_bags_by_instance[instance_name][bag_id] = bag
+	var bags: Dictionary = _bags_by_instance[instance_name]
+	bags[bag_id] = bag
 
 	ServerLog.info("[NPC_LOOT_BAG] spawn bag_id=%d enemy=%s instance=%s slots=%d" % [
 		bag_id, str(npc.enemy_type), instance_name, contents.size()
@@ -64,6 +65,7 @@ func _resolve_server_instance(node: Node):
 func list_for_instance(instance_name: String) -> Array:
 	var result: Array = []
 	var bags: Dictionary = _bags_by_instance.get(instance_name, {})
+	ServerLog.info("[NPC_LOOT_BAG] list instance=%s bags=%d" % [instance_name, bags.size()])
 	for bag_id in bags:
 		result.append(_public_bag(bags[bag_id]))
 	return result

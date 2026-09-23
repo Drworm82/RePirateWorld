@@ -11,11 +11,13 @@ var _bags: Dictionary[int, Node2D] = {}
 var _instance_name: String = ""
 var _syncing: bool = false
 var _opened_bag_id: int = 0
-var _next_refresh_ms: int = 0
-const REFRESH_INTERVAL_MS: int = 1000
 
 
 func _ready() -> void:
+	if get_tree().get_first_node_in_group("npc_loot_bag_client_bridge") != null:
+		queue_free()
+		return
+	add_to_group("npc_loot_bag_client_bridge")
 	print("[NPC_LOOT_BAG_CLIENT] ready")
 	if not GameMode.is_client():
 		queue_free()
@@ -23,14 +25,8 @@ func _ready() -> void:
 	Client.subscribe(&"pirateworld.npc_loot_bag.spawn", _on_bag_spawn)
 	Client.subscribe(&"pirateworld.npc_loot_bag.remove", _on_bag_remove)
 	Client.subscribe(&"pirateworld.npc_loot_bag.changed", _on_bag_changed)
-	Client.subscribe(&"ground_combat.end", _on_ground_combat_end)
 	call_deferred("_refresh_instance")
 
-
-func _on_ground_combat_end(payload: Dictionary) -> void:
-	if str(payload.get("result", "")) != "victory":
-		return
-	call_deferred("_refresh_instance")
 
 func _process(_delta: float) -> void:
 	var instance: InstanceClient = InstanceClient.current
@@ -53,15 +49,11 @@ func _refresh_instance() -> void:
 		return
 	_instance_name = instance.name
 	_syncing = true
-	_next_refresh_ms = Time.get_ticks_msec() + REFRESH_INTERVAL_MS
-	print("[NPC_LOOT_BAG_CLIENT] list_request instance=%s" % instance.name)
 	var result: Array = await Client.request_data_await(&"npc_loot_bag.list", {}, instance.name)
 	_syncing = false
 	if result.size() < 2 or result[1] != OK:
-		print("[NPC_LOOT_BAG_CLIENT] list_request failed result=%s" % str(result))
 		return
 	var payload: Dictionary = result[0]
-	print("[NPC_LOOT_BAG_CLIENT] list_result ok=%s bags=%d" % [str(payload.get("ok", false)), (payload.get("bags", []) as Array).size()])
 	if not bool(payload.get("ok", false)):
 		return
 	_clear_bags()
@@ -70,7 +62,6 @@ func _refresh_instance() -> void:
 
 
 func _on_bag_spawn(payload: Dictionary) -> void:
-	print("[NPC_LOOT_BAG_CLIENT] spawn_received bag_id=%d instance=%s current=%s" % [int(payload.get("bag_id", 0)), str(payload.get("instance_name", "")), str(InstanceClient.current.name if InstanceClient.current != null else "<null>")])
 	var bag_id := int(payload.get("bag_id", 0))
 	var instance := InstanceClient.current
 	if bag_id <= 0 or instance == null or instance.instance_map == null:

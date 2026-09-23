@@ -16,6 +16,7 @@ const RECALL_INSTANCE_NAME: String = "GuildHouse"
 ## _on_peer_connected.
 const TAVERN_INSTANCE_NAME: String = "GuildHouse"
 const DEATH_BAG_SERVICE_SCRIPT: Script = preload("res://source/server/world/services/death_bag_service.gd")
+const GROUND_COMBAT_SERVICE_SCRIPT: Script = preload("res://source/server/world/services/ground_combat_service.gd")
 
 var loading_instances: Dictionary[InstanceResource, ServerInstance]
 var instance_collection: Dictionary[String, InstanceResource]
@@ -25,11 +26,13 @@ var default_instance: InstanceResource
 
 ## PirateWorld PoC-01: gameplay service owned by the instance layer, not WorldServer.
 var death_bag_service: RefCounted
+var ground_combat_service: RefCounted
 
 
 func start_instance_manager() -> void:
 	ServerInstance.world_server = world_server
 	death_bag_service = DEATH_BAG_SERVICE_SCRIPT.new(world_server.database.db, world_server)
+	ground_combat_service = GROUND_COMBAT_SERVICE_SCRIPT.new(world_server)
 	
 	setup_global_commands_and_roles()
 

@@ -42,6 +42,9 @@ static func ensure_schema(db) -> void:
 	if version < 11:
 		_migration_v11(db)
 		_set_schema_version(db, 11)
+	if version < 12:
+		_migration_v12(db)
+		_set_schema_version(db, 12)
 
 
 static func _migration_v1(db) -> void:
@@ -236,6 +239,18 @@ static func _migration_v10(db) -> void:
 		"created_at_ms": {"data_type": "int", "not_null": true}
 	})
 	db.query("CREATE INDEX IF NOT EXISTS idx_death_bags_instance ON death_bags(instance_name, bag_id);")
+
+
+## v12: provider reward receipts. Stores each verified rewarded-ad transaction
+## exactly once so a provider reward cannot be redeemed repeatedly.
+static func _migration_v12(db) -> void:
+	_create_table_if_missing(db, "rewarded_ad_receipts", {
+		"reward_id": {"data_type": "text", "primary_key": true, "not_null": true},
+		"player_id": {"data_type": "int", "not_null": true},
+		"reward_amount": {"data_type": "int", "not_null": true},
+		"created_at_ms": {"data_type": "int", "not_null": true}
+	})
+	db.query("CREATE INDEX IF NOT EXISTS idx_rewarded_ad_receipts_player_time ON rewarded_ad_receipts(player_id, created_at_ms DESC);")
 
 
 static func _migration_v11(db) -> void:

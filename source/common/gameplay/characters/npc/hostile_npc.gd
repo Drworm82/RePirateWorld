@@ -949,7 +949,19 @@ func die(killer: Character) -> void:
 	# Keep possible_targets so players still standing in the area are re-acquired on
 	# respawn (body_entered won't re-fire for someone who never left).
 	_respawn_at_ms = Time.get_ticks_msec() + int(respawn_delay * 1000.0)
-	RewardService.distribute(self, _contributors, killer)
+	var use_temporary_loot_bag: bool = _uses_ground_combat() and WorldServer.curr != null \
+			and WorldServer.curr.instance_manager != null \
+			and WorldServer.curr.instance_manager.npc_loot_bag_service != null
+	if use_temporary_loot_bag:
+		var loot_gained: Array = RewardService.roll_loot(self)
+		if not loot_gained.is_empty():
+			var contents: Dictionary = {}
+			for entry: Dictionary in loot_gained:
+				var uid := Inventory.next_uid(contents)
+				contents[uid] = {"id": int(entry["id"]), "a": int(entry["amount"])}
+			var instance = get_parent().get_parent()
+			WorldServer.curr.instance_manager.npc_loot_bag_service.spawn_from_npc(instance, self, contents)
+	RewardService.distribute(self, _contributors, killer, not use_temporary_loot_bag)
 	died.emit(killer)
 
 
@@ -1038,6 +1050,13 @@ func _abandon_target() -> void:
 
 
 func _process_death() -> void:
+	# Phase 2 Goblins/Bandits do not respawn on a short timer. Their population
+	# is recreated by the map when the instance is unloaded/reloaded or the
+	# server restarts; this prevents an immediate farm loop while avoiding DB
+	# persistence for world NPC state.
+	if _uses_ground_combat():
+		container.despawn_dynamic(_prop_id)
+		return
 	if Time.get_ticks_msec() < _respawn_at_ms:
 		return
 	# Single-life mobs — guild defenders AND any enemy_data.respawns == false

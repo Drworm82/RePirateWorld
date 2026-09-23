@@ -74,6 +74,7 @@ static func _rotate(day: String) -> void:
 		_file = null
 	DirAccess.make_dir_recursive_absolute(DIR)
 	var path: String = "%s/server_%s.log" % [DIR, day]
+	print("[SERVER_LOG] Log file: %s" % ProjectSettings.globalize_path(path))
 	# WRITE_READ opens for append if the file exists (seek_end below).
 	_file = FileAccess.open(path, FileAccess.READ_WRITE)
 	if _file == null:

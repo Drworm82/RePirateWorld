@@ -288,7 +288,7 @@ func unload_unused_instances() -> void:
 		if instance.connected_peers:
 			continue
 		if npc_loot_bag_service != null:
-			npc_loot_bag_service.clear_instance(str(instance.instance_resource.instance_name))
+			npc_loot_bag_service.clear_instance(str(instance.name))
 		instance.instance_resource.charged_instances.erase(instance)
 		instance.queue_free()
 

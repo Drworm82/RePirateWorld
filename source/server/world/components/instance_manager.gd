@@ -38,6 +38,7 @@ func start_instance_manager() -> void:
 
 	set_instance_collection.call_deferred()
 	world_server.multiplayer_api.peer_connected.connect(_on_peer_connected)
+	world_server.multiplayer_api.peer_disconnected.connect(func(peer_id: int): ground_combat_service.end_for_peer(peer_id))
 
 	# Death Bag state timer: floating -> sunk after the configured 60-second MVP duration.
 	var death_bag_timer: Timer = Timer.new()
@@ -211,6 +212,8 @@ func player_switch_instance(
 	current_instance: ServerInstance,
 ) -> void:
 	var peer_id: int = player.name.to_int()
+	if ground_combat_service != null:
+		ground_combat_service.end_for_peer(peer_id)
 	if current_instance.connected_peers.has(peer_id):
 		current_instance.despawn_player(peer_id, false)
 	else:

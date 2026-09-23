@@ -1,3 +1,4 @@
+class_name RewardedAdService
 extends RefCounted
 
 ## Server-authoritative rewarded-ad economy service.

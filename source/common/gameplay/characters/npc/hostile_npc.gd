@@ -704,6 +704,13 @@ func _process_chase() -> void:
 
 	var distance_from_player: float = global_position.distance_to(targeted_player.global_position)
 	if distance_from_player < distance_to_attack:
+		# Phase 2 Goblin/Bandit combat is exclusively turn-based. If the
+		# player is still in contact after fleeing, immediately offer a new
+		# turn-based encounter instead of falling back to real-time attacks.
+		if _uses_ground_combat() and WorldServer.curr != null and WorldServer.curr.instance_manager != null:
+			var ground_combat_service = WorldServer.curr.instance_manager.ground_combat_service
+			if ground_combat_service != null and ground_combat_service.try_start(targeted_player, self):
+				return
 		enemy_state = EnemyState.ATTACK
 		return
 
@@ -716,12 +723,22 @@ func _process_chase() -> void:
 			return
 
 
+func _uses_ground_combat() -> bool:
+	return String(enemy_type).begins_with("goblin_") or enemy_type == &"bandit"
+
+
 ## Inside ATTACK state the mob keeps advancing until this fraction of its
 ## attack range, then plants — see _process_attack.
 const ATTACK_ADVANCE_STOP_FRACTION: float = 0.65
 
 
 func _process_attack() -> void:
+	# Goblin-family enemies and Bandits retain their chase/pressure behavior,
+	# but their damage is exclusively handled by GroundCombatService.
+	# Never execute the legacy real-time attack path for these types.
+	if _uses_ground_combat():
+		enemy_state = EnemyState.CHASE
+		return
 	if not _is_target_valid(targeted_player):
 		_abandon_target()
 		return

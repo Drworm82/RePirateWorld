@@ -256,6 +256,14 @@ func _end_battle(peer_id: int, result: String) -> void:
 
 	var enemy: HostileNpc = battle.get("enemy", null)
 	var player: Player = battle.get("player", null)
+
+	# Flee returns ownership to the normal world AI. The NPC remains alive
+	# and resumes pursuit; a later contact creates another turn-based battle.
+	# HostileNpc blocks its legacy real-time damage path for Goblins/Bandits.
+	if result == "fled" and is_instance_valid(enemy) and is_instance_valid(player) and not enemy.is_dead and not player.is_dead:
+		enemy.targeted_player = player
+		enemy.enemy_state = HostileNpc.EnemyState.CHASE
+
 	var enemy_hp := 0
 	if is_instance_valid(enemy):
 		enemy_hp = int(round(enemy.stats_component.get_stat(Stat.HEALTH)))

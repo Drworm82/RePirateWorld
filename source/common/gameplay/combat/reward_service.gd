@@ -95,15 +95,22 @@ static func _reward(player: Player, npc: HostileNpc, grant_loot: bool) -> void:
 
 
 ## Rolls each loot entry; returns [{ "id", "amount", "name" }, ...].
+## Every NPC with at least one configured LootDrop gets at least one item:
+## normal chances are respected first; if RNG produces no drop, one configured
+## drop is selected as the guaranteed fallback. This keeps the guaranteed item
+## tied to the NPC archetype instead of introducing a second loot table.
 static func roll_loot(npc: HostileNpc) -> Array:
 	return _roll_loot(npc)
 
 
 static func _roll_loot(npc: HostileNpc) -> Array:
 	var out: Array = []
+	var valid_drops: Array[LootDrop] = []
+
 	for drop: LootDrop in npc.loot:
 		if drop == null or drop.item == null:
 			continue
+		valid_drops.append(drop)
 		if randf() <= drop.chance:
 			var amount: int = randi_range(drop.min_amount, drop.max_amount)
 			if amount > 0:
@@ -112,4 +119,15 @@ static func _roll_loot(npc: HostileNpc) -> Array:
 					"amount": amount,
 					"name": str(drop.item.item_name),
 				})
+
+	if out.is_empty() and not valid_drops.is_empty():
+		var guaranteed: LootDrop = valid_drops.pick_random()
+		var amount: int = randi_range(guaranteed.min_amount, guaranteed.max_amount)
+		if amount > 0:
+			out.append({
+				"id": int(guaranteed.item.get_meta(&"id", 0)),
+				"amount": amount,
+				"name": str(guaranteed.item.item_name),
+			})
+
 	return out

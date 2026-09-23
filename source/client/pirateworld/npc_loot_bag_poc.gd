@@ -11,6 +11,8 @@ var _bags: Dictionary[int, Node2D] = {}
 var _instance_name: String = ""
 var _syncing: bool = false
 var _opened_bag_id: int = 0
+var _next_refresh_ms: int = 0
+const REFRESH_INTERVAL_MS: int = 1000
 
 
 func _ready() -> void:
@@ -45,6 +47,7 @@ func _refresh_instance() -> void:
 		return
 	_instance_name = instance.name
 	_syncing = true
+	_next_refresh_ms = Time.get_ticks_msec() + REFRESH_INTERVAL_MS
 	print("[NPC_LOOT_BAG_CLIENT] list_request instance=%s" % instance.name)
 	var result: Array = await Client.request_data_await(&"npc_loot_bag.list", {}, instance.name)
 	_syncing = false

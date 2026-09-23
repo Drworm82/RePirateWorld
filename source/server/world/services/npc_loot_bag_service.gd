@@ -214,7 +214,7 @@ func _get_bag(instance, bag_id: int) -> Dictionary:
 
 
 func _delete_bag(instance, bag_id: int) -> void:
-	var instance_name := str(instance.instance_resource.instance_name)
+	var instance_name := str(instance.name)
 	var bags: Dictionary = _bags_by_instance.get(instance_name, {})
 	bags.erase(bag_id)
 	_release_lock(bag_id)

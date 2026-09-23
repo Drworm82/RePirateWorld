@@ -20,10 +20,15 @@ func _init(database, server) -> void:
 
 
 func spawn_from_player(instance, player):
+    ServerLog.info("[DEATH_BAG] spawn_from_player called peer_id=%d player_id=%d" % [
+        int(player.player_resource.current_peer_id) if player != null and player.player_resource != null else 0,
+        int(player.player_resource.player_id) if player != null and player.player_resource != null else 0,
+    ])
     if instance == null or player == null or player.player_resource == null:
         return {"ok": false, "reason": "invalid_player"}
 
     var contents = player.player_resource.inventory.duplicate(true)
+    ServerLog.info("[DEATH_BAG] captured inventory slots=%d gold=%d" % [contents.size(), Inventory.count(contents, Economy.gold_id())])
     if contents.is_empty():
         return {"ok": false, "reason": "empty_inventory"}
 
@@ -47,9 +52,11 @@ func spawn_from_player(instance, player):
         return {"ok": false, "reason": "database_insert_failed"}
 
     var bag_id = int(db.query_result[0].get("bag_id", 0))
+    ServerLog.info("[DEATH_BAG] database bag created bag_id=%d owner_id=%d" % [bag_id, int(player.player_resource.player_id)])
 
     player.player_resource.inventory.clear()
     world_server.database.save_player(player.player_resource)
+    ServerLog.info("[DEATH_BAG] player inventory cleared and saved bag_id=%d gold_now=%d" % [bag_id, Inventory.count(player.player_resource.inventory, Economy.gold_id())])
 
     var bag = {
         "bag_id": bag_id,

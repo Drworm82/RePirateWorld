@@ -21,14 +21,6 @@ func execute(args: PackedStringArray, peer_id: int, server_instance: ServerInsta
 	if player.is_dead:
 		return "Player is already dead."
 
-	var death_bag_service = WorldServer.curr.instance_manager.death_bag_service
-	if death_bag_service == null:
-		return "Death Bag service is unavailable."
-
-	var result: Dictionary = death_bag_service.spawn_from_player(server_instance, player)
-	if not bool(result.get("ok", false)):
-		return "Death Bag failed: %s" % str(result.get("reason", "unknown"))
-
 	# Mirror the authoritative state transition that normally happens in
 	# Character.take_damage() immediately before Player.die().
 	player.is_dead = true

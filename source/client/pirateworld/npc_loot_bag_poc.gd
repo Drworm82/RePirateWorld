@@ -14,10 +14,18 @@ var _opened_bag_id: int = 0
 
 
 func _ready() -> void:
+	var existing = Client.get_meta(&"npc_loot_bag_client_bridge", null) if is_instance_valid(Client) else null
+	if (existing is Node and is_instance_valid(existing)) and existing != self:
+		set_process(false)
+		queue_free()
+		return
 	if get_tree().get_first_node_in_group("npc_loot_bag_client_bridge") != null:
+		set_process(false)
 		queue_free()
 		return
 	add_to_group("npc_loot_bag_client_bridge")
+	if is_instance_valid(Client):
+		Client.set_meta(&"npc_loot_bag_client_bridge", self)
 	print("[NPC_LOOT_BAG_CLIENT] ready")
 	if not GameMode.is_client():
 		queue_free()

@@ -23,8 +23,14 @@ func _ready() -> void:
 	Client.subscribe(&"pirateworld.npc_loot_bag.spawn", _on_bag_spawn)
 	Client.subscribe(&"pirateworld.npc_loot_bag.remove", _on_bag_remove)
 	Client.subscribe(&"pirateworld.npc_loot_bag.changed", _on_bag_changed)
+	Client.subscribe(&"ground_combat.end", _on_ground_combat_end)
 	call_deferred("_refresh_instance")
 
+
+func _on_ground_combat_end(payload: Dictionary) -> void:
+	if str(payload.get("result", "")) != "victory":
+		return
+	call_deferred("_refresh_instance")
 
 func _process(_delta: float) -> void:
 	var instance: InstanceClient = InstanceClient.current

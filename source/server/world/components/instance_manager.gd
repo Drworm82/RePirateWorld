@@ -36,6 +36,13 @@ func start_instance_manager() -> void:
 	set_instance_collection.call_deferred()
 	world_server.multiplayer_api.peer_connected.connect(_on_peer_connected)
 
+	# Death Bag state timer: floating -> sunk after the configured 60-second MVP duration.
+	var death_bag_timer: Timer = Timer.new()
+	death_bag_timer.wait_time = 5.0
+	death_bag_timer.autostart = true
+	death_bag_timer.timeout.connect(death_bag_service.transition_expired_floating_bags)
+	add_sibling(death_bag_timer)
+
 	# Timer which will call unload_unused_instances
 	var timer: Timer = Timer.new()
 	timer.wait_time = 20.0 # 20.0 is for testing, consider increasing it

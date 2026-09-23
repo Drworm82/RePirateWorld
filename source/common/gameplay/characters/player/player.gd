@@ -73,6 +73,20 @@ func die(killer: Character) -> void:
 		player_resource.inventory.size() if player_resource != null else 0,
 		Inventory.count(player_resource.inventory, Economy.gold_id()) if player_resource != null else 0,
 	])
+
+	# Death Bag: every real player death captures the carried inventory before the
+	# normal respawn flow can restore the player. The service is server-owned; the
+	# client never gets to choose or grant the contents.
+	if GameMode.is_world_server() and player_resource != null and not player_resource.inventory.is_empty():
+		var peer_id: int = int(player_resource.current_peer_id)
+		var instance = WorldServer.curr.instance_manager.find_instance_for_peer(peer_id) if WorldServer.curr != null and WorldServer.curr.instance_manager != null else null
+		var death_bag_service = WorldServer.curr.instance_manager.death_bag_service if WorldServer.curr != null and WorldServer.curr.instance_manager != null else null
+		if instance != null and death_bag_service != null:
+			var death_bag_result: Dictionary = death_bag_service.spawn_from_player(instance, self)
+			if not bool(death_bag_result.get("ok", false)):
+				ServerLog.warn("[DEATH_BAG] Failed to capture player_id=%d reason=%s" % [int(player_resource.player_id), str(death_bag_result.get("reason", "unknown"))])
+		else:
+			ServerLog.warn("[DEATH_BAG] Service unavailable for player_id=%d" % int(player_resource.player_id))
 	# Leaderboard: credit the killer for real open-world PvP only — never
 	# sparring/duels (those are tallied as arena wins/losses). in_match is still
 	# true here (on_player_died_in_match clears it below). NPC killers are

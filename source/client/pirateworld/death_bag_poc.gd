@@ -27,13 +27,13 @@ func _ready() -> void:
 func _ensure_npc_loot_bag_bridge() -> void:
 	if not is_instance_valid(Client):
 		return
-	# Client is persistent; use its metadata as the single ownership slot.
-	var existing = Client.get_meta(&"npc_loot_bag_client_bridge", null)
+	# Client is persistent; keep one bridge as a direct child instead of using
+	# Object metadata, which is not reliable for this Client implementation.
+	var existing = Client.get_node_or_null("NpcLootBagClientBridge")
 	if existing is Node and is_instance_valid(existing):
 		return
 	var npc_loot_bag_bridge = preload("res://source/client/pirateworld/npc_loot_bag_poc.gd").new()
 	npc_loot_bag_bridge.name = "NpcLootBagClientBridge"
-	Client.set_meta(&"npc_loot_bag_client_bridge", npc_loot_bag_bridge)
 	Client.add_child(npc_loot_bag_bridge)
 
 

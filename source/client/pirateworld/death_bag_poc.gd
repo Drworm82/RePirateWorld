@@ -20,9 +20,19 @@ func _ready() -> void:
 	Client.subscribe(&"pirateworld.death_bag.remove", _on_bag_remove)
 	Client.subscribe(&"pirateworld.death_bag.changed", _on_bag_changed)
 	Client.subscribe(&"pirateworld.death_bag.state", _on_bag_state)
-	var npc_loot_bag_bridge = preload("res://source/client/pirateworld/npc_loot_bag_poc.gd").new()
-	add_child(npc_loot_bag_bridge)
+	_ensure_npc_loot_bag_bridge()
 	call_deferred("_refresh_instance")
+
+
+func _ensure_npc_loot_bag_bridge() -> void:
+	if not is_instance_valid(Client):
+		return
+	var existing := Client.get_node_or_null("NpcLootBagClientBridge")
+	if existing != null:
+		return
+	var npc_loot_bag_bridge = preload("res://source/client/pirateworld/npc_loot_bag_poc.gd").new()
+	npc_loot_bag_bridge.name = "NpcLootBagClientBridge"
+	Client.add_child(npc_loot_bag_bridge)
 
 
 func _process(_delta: float) -> void:

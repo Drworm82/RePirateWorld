@@ -226,8 +226,9 @@ static func _migration_v9(db) -> void:
 		db.query("ALTER TABLE players ADD COLUMN wardstones_json TEXT NOT NULL DEFAULT '[]';")
 
 
-## v10: PirateWorld PoC-01 physical Death Bags. Each bag is a persistent world
+## v10: PirateWorld physical Death Bags. Each bag is a persistent world
 ## entity snapshot: map, position, owner and unsecured inventory contents.
+## Persistence is not governed by an expiration timer.
 static func _migration_v10(db) -> void:
 	_create_table_if_missing(db, "death_bags", {
 		"bag_id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
@@ -258,8 +259,8 @@ static func _migration_v11(db) -> void:
 		db.query("ALTER TABLE death_bags ADD COLUMN state TEXT NOT NULL DEFAULT 'floating';")
 	if not _column_exists(db, "death_bags", "sunk_at_ms"):
 		db.query("ALTER TABLE death_bags ADD COLUMN sunk_at_ms INTEGER NOT NULL DEFAULT 0;")
-	# Existing PoC-02 bags predate lifecycle timing; restart their lifecycle at migration
-	# so they are not immediately sunk when PoC-03 is first enabled.
+	# Legacy state columns are retained for compatibility with the Death Bag PoC.
+	# Current persistence rules do not expire or delete bags automatically.
 	db.query_with_bindings(
 		"UPDATE death_bags SET state='floating', sunk_at_ms=0, created_at_ms=?;",
 		[int(Time.get_unix_time_from_system() * 1000.0)]

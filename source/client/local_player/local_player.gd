@@ -84,6 +84,9 @@ func _ready() -> void:
 	# Staff teleports (/goto, /summon) within the same map: same problem as the
 	# sparring teleport — we must set position locally + freeze input briefly.
 	Client.subscribe(&"player.teleport", _on_teleport)
+	Client.subscribe(&"ground_combat.lock", _on_ground_combat_lock)
+	Client.subscribe(&"ground_combat.state", _on_ground_combat_state)
+	Client.subscribe(&"ground_combat.end", _on_ground_combat_end)
 	# STUNNED (Pinning Arrow): the server locks our input for the duration — movement
 	# is client-authoritative, so the freeze must happen here. The movement lock also
 	# swallows attacks, and the server refuses our actions regardless.
@@ -214,6 +217,9 @@ func _request_origin_respawn(button: Button) -> void:
 ## the new position; we apply it and freeze input briefly so the player
 ## doesn't immediately walk off the spot.
 var _movement_lock_until_ms: int = 0
+var _ground_combat_locked: bool = false
+var _ground_combat_window: Window
+var _ground_combat_state: Dictionary = {}
 
 func _on_sparring_match_state(payload: Dictionary) -> void:
 	var pos: Variant = payload.get("position", null)
@@ -412,6 +418,13 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _ground_combat_locked:
+		input_direction = Vector2.ZERO
+		action_input = false
+		velocity = Vector2.ZERO
+		process_animation(delta)
+		process_synchronization()
+		return
 	process_input()
 	process_movement()
 	process_animation(delta)
@@ -605,3 +618,162 @@ func _on_settings_changed(section: StringName, property: StringName, value: Vari
 func _has_gui_focus() -> bool:
 	var focus: Control = get_viewport().gui_get_focus_owner()
 	return focus is LineEdit or focus is TextEdit
+
+
+# --- Phase 2: turn-based ground combat -------------------------------------
+
+func _on_ground_combat_lock(payload: Dictionary) -> void:
+	_ground_combat_locked = bool(payload.get("locked", false))
+	input_direction = Vector2.ZERO
+	action_input = false
+	if _ground_combat_locked:
+		velocity = Vector2.ZERO
+		if controller != null:
+			controller.enabled = false
+	else:
+		if controller != null:
+			controller.enabled = true
+
+
+func _on_ground_combat_state(payload: Dictionary) -> void:
+	_ground_combat_state = payload.duplicate(true)
+	if _ground_combat_window == null or not is_instance_valid(_ground_combat_window):
+		_show_ground_combat_window()
+	_update_ground_combat_window()
+
+
+func _on_ground_combat_end(payload: Dictionary) -> void:
+	_ground_combat_locked = false
+	if controller != null:
+		controller.enabled = true
+	if _ground_combat_window != null and is_instance_valid(_ground_combat_window):
+		_ground_combat_window.queue_free()
+		_ground_combat_window = null
+	var result := str(payload.get("result", "cancelled"))
+	match result:
+		"victory":
+			Toaster.toast("Victoria. El bandido ha sido derrotado.")
+		"defeat":
+			Toaster.toast("Has perdido el combate.")
+		"fled":
+			Toaster.toast("Has huido del combate.")
+		_:
+			Toaster.toast("El combate terminó.")
+
+
+func _show_ground_combat_window() -> void:
+	var window := Window.new()
+	_ground_combat_window = window
+	window.name = "GroundCombatWindow"
+	window.title = "Combate"
+	window.size = Vector2i(440, 430)
+	window.close_requested.connect(func(): pass)
+
+	var root := VBoxContainer.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 10)
+	window.add_child(root)
+
+	var title := Label.new()
+	title.name = "Title"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	root.add_child(title)
+
+	var status := Label.new()
+	status.name = "Status"
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(status)
+
+	var enemy_hp := ProgressBar.new()
+	enemy_hp.name = "EnemyHP"
+	enemy_hp.custom_minimum_size = Vector2(0, 28)
+	root.add_child(enemy_hp)
+
+	var player_hp := ProgressBar.new()
+	player_hp.name = "PlayerHP"
+	player_hp.custom_minimum_size = Vector2(0, 28)
+	root.add_child(player_hp)
+
+	var actions := GridContainer.new()
+	actions.name = "Actions"
+	actions.columns = 2
+	actions.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(actions)
+
+	for entry in [
+		{"name": "Attack", "text": "ATACAR", "action": "attack"},
+		{"name": "Ability", "text": "HABILIDAD", "action": "ability"},
+		{"name": "Item", "text": "OBJETO", "action": "item"},
+		{"name": "Defend", "text": "DEFENDER", "action": "defend"},
+	]:
+		var button := Button.new()
+		button.name = entry["name"]
+		button.text = entry["text"]
+		button.custom_minimum_size = Vector2(0, 58)
+		button.pressed.connect(_ground_combat_action.bind(str(entry["action"])))
+		actions.add_child(button)
+
+	var flee := Button.new()
+	flee.name = "Flee"
+	flee.text = "HUIR"
+	flee.custom_minimum_size = Vector2(0, 44)
+	flee.pressed.connect(_ground_combat_action.bind("flee"))
+	root.add_child(flee)
+
+	add_child(window)
+	window.popup_centered()
+
+
+func _update_ground_combat_window() -> void:
+	if _ground_combat_window == null or not is_instance_valid(_ground_combat_window):
+		return
+	var title := _ground_combat_window.get_node_or_null("VBoxContainer/Title") as Label
+	var status := _ground_combat_window.get_node_or_null("VBoxContainer/Status") as Label
+	var enemy_hp := _ground_combat_window.get_node_or_null("VBoxContainer/EnemyHP") as ProgressBar
+	var player_hp := _ground_combat_window.get_node_or_null("VBoxContainer/PlayerHP") as ProgressBar
+	if title == null:
+		return
+
+	var enemy_name := str(_ground_combat_state.get("enemy_name", "Bandido"))
+	var enemy_current := float(_ground_combat_state.get("enemy_hp", 0))
+	var enemy_max := maxf(1.0, float(_ground_combat_state.get("enemy_max_hp", 1)))
+	var player_current := float(_ground_combat_state.get("player_hp", 0))
+	var player_max := maxf(1.0, float(_ground_combat_state.get("player_max_hp", 1)))
+	var turn := str(_ground_combat_state.get("turn", "player"))
+
+	title.text = "Bandido: %s" % enemy_name
+	status.text = "Tu turno" if turn == "player" else "Turno del enemigo..."
+	enemy_hp.max_value = enemy_max
+	enemy_hp.value = enemy_current
+	enemy_hp.tooltip_text = "Bandido: %d / %d HP" % [int(enemy_current), int(enemy_max)]
+	player_hp.max_value = player_max
+	player_hp.value = player_current
+	player_hp.tooltip_text = "Jugador: %d / %d HP" % [int(player_current), int(player_max)]
+
+	var actions := _ground_combat_window.get_node_or_null("VBoxContainer/Actions") as GridContainer
+	if actions != null:
+		for child in actions.get_children():
+			if child is Button:
+				(child as Button).disabled = turn != "player"
+
+
+func _ground_combat_action(action: String) -> void:
+	if action != "flee" and str(_ground_combat_state.get("turn", "enemy")) != "player":
+		return
+	var instance := InstanceClient.current
+	if instance == null:
+		return
+	var request_name: StringName = &"ground_combat.flee" if action == "flee" else &"ground_combat.action"
+	var args := {} if action == "flee" else {"action": action}
+	var result: Array = await Client.request_data_await(request_name, args, instance.name)
+	if result.size() < 2 or result[1] != OK:
+		Toaster.toast("No se pudo ejecutar la acción.")
+		return
+	var payload: Dictionary = result[0]
+	if not bool(payload.get("ok", false)):
+		match str(payload.get("reason", "")):
+			"item_missing": Toaster.toast("No tienes una poción de curación.")
+			"health_full": Toaster.toast("Tu vida ya está al máximo.")
+			"not_your_turn": Toaster.toast("No es tu turno.")
+			_: Toaster.toast("Acción no válida.")

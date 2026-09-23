@@ -96,6 +96,7 @@ func open(peer_id: int, instance, bag_id: int) -> Dictionary:
 
 
 func loot(peer_id: int, instance, bag_id: int, slot_uid: String) -> Dictionary:
+	ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_call peer=%d bag_id=%d slot=%s" % [peer_id, bag_id, slot_uid])
 	var bag := _get_bag(instance, bag_id)
 	if bag.is_empty():
 		_release_lock(bag_id)
@@ -152,6 +153,7 @@ func loot(peer_id: int, instance, bag_id: int, slot_uid: String) -> Dictionary:
 
 
 func loot_all(peer_id: int, instance, bag_id: int) -> Dictionary:
+	ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_call peer=%d bag_id=%d" % [peer_id, bag_id])
 	var bag := _get_bag(instance, bag_id)
 	if bag.is_empty():
 		_release_lock(bag_id)
@@ -232,6 +234,7 @@ func _get_bag(instance, bag_id: int) -> Dictionary:
 
 
 func _delete_bag(instance, bag_id: int) -> void:
+	ServerLog.info("[NPC_LOOT_BAG_DIAG] delete_call bag_id=%d" % bag_id)
 	var instance_name := str(instance.instance_resource.instance_name)
 	var bags: Dictionary = _bags_by_instance.get(instance_name, {})
 	bags.erase(bag_id)

@@ -9,6 +9,7 @@ const LOOT_ICON_SIZE: Vector2 = Vector2(44, 44)
 
 var _bags: Dictionary[int, Node2D] = {}
 var _instance_name: String = ""
+var _instance_ref: InstanceClient = null
 var _syncing: bool = false
 var _opened_bag_id: int = 0
 
@@ -40,11 +41,13 @@ func _process(_delta: float) -> void:
 	var instance: InstanceClient = InstanceClient.current
 	if instance == null or instance.instance_map == null:
 		return
-	var current_name := instance.name
-	if current_name != _instance_name:
-		_instance_name = current_name
-	_clear_bags()
-	_refresh_instance()
+	# Use the InstanceClient object as the lifecycle key; its logical name
+	# is not sufficient to detect instance replacement reliably.
+	if _instance_ref != instance:
+		_instance_ref = instance
+		_instance_name = instance.name
+		_clear_bags()
+		_refresh_instance()
 	if Input.is_action_just_pressed(PICKUP_ACTION):
 		_try_pickup(instance)
 
@@ -56,6 +59,7 @@ func _refresh_instance() -> void:
 	if instance == null or instance.instance_map == null:
 		return
 	_instance_name = instance.name
+	_instance_ref = instance
 	_syncing = true
 	var result: Array = await Client.request_data_await(&"npc_loot_bag.list", {}, instance.name)
 	_syncing = false

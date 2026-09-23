@@ -27,7 +27,7 @@ func try_start(player: Player, enemy: HostileNpc) -> bool:
 		return false
 
 	var peer_id := int(player.player_resource.current_peer_id)
-	if peer_id <= 0 or _battles.has(peer_id):
+	if peer_id <= 0 or _battles.has(peer_id) or is_npc_locked(enemy):
 		return false
 
 	var player_speed := maxi(1, int(player.stats_component.get_stat(Stat.MOVE_SPEED) / 10.0))

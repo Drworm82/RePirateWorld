@@ -105,6 +105,7 @@ func loot(peer_id: int, instance, bag_id: int, slot_uid: String) -> Dictionary:
 	var moved := _add_item(player.player_resource.inventory, item_id, amount)
 	if moved <= 0:
 		return {"ok": false, "reason": "inventory_full", "contents": bag.contents}
+	DailyQuestService.on_collect(player.player_resource, item_id, moved)
 
 	var remaining := amount - moved
 	if remaining <= 0:
@@ -157,6 +158,8 @@ func loot_all(peer_id: int, instance, bag_id: int) -> Dictionary:
 		if item_id <= 0 or amount <= 0:
 			continue
 		var moved := _add_item(player.player_resource.inventory, item_id, amount)
+		if moved > 0:
+			DailyQuestService.on_collect(player.player_resource, item_id, moved)
 		moved_total += moved
 		var remaining := amount - moved
 		if remaining <= 0:

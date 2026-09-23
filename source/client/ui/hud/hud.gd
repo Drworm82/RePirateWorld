@@ -24,6 +24,7 @@ var _hidden_for_menu: Array[CanvasItem] = []
 @onready var chat_button: Button = $MenuButtons/ButtonRail/ChatButton
 @onready var actions_button: Button = $MenuButtons/ButtonRail/ActionsButton
 @onready var recall_button: Button = $MenuButtons/ButtonRail/RecallButton
+@onready var rewarded_ad_button: Button = $MenuButtons/ButtonRail/RewardedAdButton
 
 ## The ACTIONS FLYOUT: the rail's expandable drawer of deliberate, non-twitch character
 ## actions (docs/ui.md two-tier rule — this is how the HUD scales without top-level creep).
@@ -68,6 +69,7 @@ func _ready() -> void:
 		if ClientState.local_player != null:
 			ClientState.local_player.request_recall()
 		_toggle_actions_flyout())
+	rewarded_ad_button.pressed.connect(_on_rewarded_ad_pressed)
 	Client.subscribe(&"notification", _on_notification_received)
 	ClientState.player_profile_requested.connect(open_player_profile)
 	ClientState.player_profile_by_peer_requested.connect(open_player_profile_by_peer)
@@ -358,6 +360,32 @@ func display_menu(menu_name: StringName, arg: Variant = null) -> void:
 	_animate_menu_open(menus[menu_name])
 	if arg != null and menus[menu_name].has_method(&"open"):
 		menus[menu_name].open(arg)
+
+
+func _on_rewarded_ad_pressed() -> void:
+	if rewarded_ad_button.disabled:
+		return
+	rewarded_ad_button.disabled = true
+	var instance := InstanceClient.current
+	if instance == null:
+		rewarded_ad_button.disabled = false
+		return
+	# PoC: no real ad SDK yet. The server simulates a completed rewarded ad
+	# and grants exactly 1 gold authoritatively.
+	var result: Array = await Client.request_data_await(&"rewarded_ad.claim", {}, instance.name)
+	rewarded_ad_button.disabled = false
+	if result.size() < 2 or result[1] != OK:
+		Toaster.toast("No se pudo completar el anuncio.")
+		return
+	var payload: Dictionary = result[0]
+	if bool(payload.get("ok", false)):
+		Toaster.toast("+1 oro por anuncio. Total: %d" % int(payload.get("gold", 0)))
+	else:
+		match str(payload.get("reason", "")):
+			"rate_limited": Toaster.toast("Espera un momento antes de ver otro anuncio.")
+			"player_not_found": Toaster.toast("Jugador no disponible.")
+			"player_dead": Toaster.toast("No puedes ver anuncios mientras estás muerto.")
+			_: Toaster.toast("No se pudo completar el anuncio.")
 
 
 func _on_overlay_menu_button_pressed() -> void:

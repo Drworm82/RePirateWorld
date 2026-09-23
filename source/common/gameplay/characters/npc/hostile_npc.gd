@@ -353,7 +353,7 @@ func _physics_process(_delta: float) -> void:
 	if not multiplayer.is_server():
 		return
 
-	# Phase 2 turn-based combat temporarily owns Bandit movement/AI.
+	# Phase 2 turn-based combat temporarily owns the active Goblin/Bandit movement and AI.
 	if WorldServer.curr != null and WorldServer.curr.instance_manager != null:
 		var ground_combat_service = WorldServer.curr.instance_manager.ground_combat_service
 		if ground_combat_service != null and ground_combat_service.is_npc_locked(self):

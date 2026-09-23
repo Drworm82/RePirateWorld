@@ -155,6 +155,7 @@ func _show_death_screen() -> void:
 	)
 
 	var root := VBoxContainer.new()
+	root.name = "Root"
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_theme_constant_override("separation", 14)
 	window.add_child(root)
@@ -728,10 +729,10 @@ func _show_ground_combat_window() -> void:
 func _update_ground_combat_window() -> void:
 	if _ground_combat_window == null or not is_instance_valid(_ground_combat_window):
 		return
-	var title := _ground_combat_window.get_node_or_null("VBoxContainer/Title") as Label
-	var status := _ground_combat_window.get_node_or_null("VBoxContainer/Status") as Label
-	var enemy_hp := _ground_combat_window.get_node_or_null("VBoxContainer/EnemyHP") as ProgressBar
-	var player_hp := _ground_combat_window.get_node_or_null("VBoxContainer/PlayerHP") as ProgressBar
+	var title := _ground_combat_window.get_node_or_null("Root/Title") as Label
+	var status := _ground_combat_window.get_node_or_null("Root/Status") as Label
+	var enemy_hp := _ground_combat_window.get_node_or_null("Root/EnemyHP") as ProgressBar
+	var player_hp := _ground_combat_window.get_node_or_null("Root/PlayerHP") as ProgressBar
 	if title == null:
 		return
 
@@ -751,7 +752,7 @@ func _update_ground_combat_window() -> void:
 	player_hp.value = player_current
 	player_hp.tooltip_text = "Jugador: %d / %d HP" % [int(player_current), int(player_max)]
 
-	var actions := _ground_combat_window.get_node_or_null("VBoxContainer/Actions") as GridContainer
+	var actions := _ground_combat_window.get_node_or_null("Root/Actions") as GridContainer
 	if actions != null:
 		for child in actions.get_children():
 			if child is Button:

@@ -31,5 +31,4 @@ func execute(args: PackedStringArray, peer_id: int, server_instance: ServerInsta
 	# test and is already handled by LeaderboardService.record_pvp_kill().
 	player.die(null)
 
-	var bag: Dictionary = result["bag"]
-	return "PoC death triggered. Death Bag %d created. Respawning in 3 seconds." % int(bag["bag_id"])
+	return "PoC death triggered. Death Bag handled by the real death flow. Respawning in 3 seconds."

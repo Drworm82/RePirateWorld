@@ -353,6 +353,13 @@ func _physics_process(_delta: float) -> void:
 	if not multiplayer.is_server():
 		return
 
+	# Phase 2 turn-based combat temporarily owns Bandit movement/AI.
+	if WorldServer.curr != null and WorldServer.curr.instance_manager != null:
+		var ground_combat_service = WorldServer.curr.instance_manager.ground_combat_service
+		if ground_combat_service != null and ground_combat_service.is_npc_locked(self):
+			velocity = Vector2.ZERO
+			return
+
 	# Rooted for a telegraphed cast — or STUNNED (Pinning Arrow): hold position and do
 	# nothing. DEAD still processes so death isn't deferred behind the wind-up.
 	if enemy_state != EnemyState.DEAD and (
@@ -397,6 +404,13 @@ func _on_body_entered(body: Node) -> void:
 
 	if body is not Player: return
 	if not _is_hostile_to(body): return # Defenders ignore their own guild.
+
+	# Phase 2 MVP: Bandits enter the turn-based ground combat layer on contact.
+	# The service takes ownership before the real-time mob AI acquires a target.
+	if enemy_type == &"bandit" and WorldServer.curr != null and WorldServer.curr.instance_manager != null:
+		var ground_combat_service = WorldServer.curr.instance_manager.ground_combat_service
+		if ground_combat_service != null and ground_combat_service.try_start(body as Player, self):
+			return
 
 	if possible_targets.has(body):
 		possible_targets.set(possible_targets.find(body, 0), body)

@@ -21,7 +21,7 @@ func spawn_from_npc(instance, npc: HostileNpc, contents: Dictionary) -> Dictiona
 	if instance == null or npc == null or contents.is_empty():
 		return {"ok": false, "reason": "empty_loot"}
 
-	var instance_name := str(instance.instance_resource.instance_name)
+	var instance_name := str(instance.name)
 	var bag_id := _next_bag_id
 	_next_bag_id += 1
 
@@ -207,7 +207,7 @@ func clear_instance(instance_name: String) -> void:
 func _get_bag(instance, bag_id: int) -> Dictionary:
 	if instance == null or bag_id <= 0:
 		return {}
-	var instance_name := str(instance.instance_resource.instance_name)
+	var instance_name := str(instance.name)
 	var bags: Dictionary = _bags_by_instance.get(instance_name, {})
 	var bag = bags.get(bag_id, null)
 	return bag if bag is Dictionary else {}

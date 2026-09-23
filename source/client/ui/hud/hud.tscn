@@ -257,6 +257,15 @@ icon = ExtResource("15_recallicon")
 icon_alignment = 1
 metadata/_edit_lock_ = true
 
+[node name="RewardedAdButton" type="Button" parent="MenuButtons/ButtonRail" unique_id=1245197829]
+custom_minimum_size = Vector2(130, 40)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+tooltip_text = "Ver anuncio y recibir +1 oro"
+text = "VER ANUNCIO (+1)"
+metadata/_edit_lock_ = true
+
 [node name="MenuOverlay" type="Control" parent="." unique_id=1850870091]
 visible = false
 z_index = 2

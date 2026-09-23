@@ -21,7 +21,12 @@ func spawn_from_npc(instance, npc: HostileNpc, contents: Dictionary) -> Dictiona
 	if instance == null or npc == null or contents.is_empty():
 		return {"ok": false, "reason": "empty_loot"}
 
-	var instance_name := str(instance.name)
+	var server_instance = _resolve_server_instance(instance)
+	if server_instance == null:
+		ServerLog.error("[NPC_LOOT_BAG] spawn failed: could not resolve ServerInstance from %s" % str(instance.name))
+		return {"ok": false, "reason": "instance_not_found"}
+
+	var instance_name := str(server_instance.name)
 	var bag_id := _next_bag_id
 	_next_bag_id += 1
 
@@ -40,8 +45,20 @@ func spawn_from_npc(instance, npc: HostileNpc, contents: Dictionary) -> Dictiona
 	ServerLog.info("[NPC_LOOT_BAG] spawn bag_id=%d enemy=%s instance=%s slots=%d" % [
 		bag_id, str(npc.enemy_type), instance_name, contents.size()
 	])
-	_broadcast(instance, &"pirateworld.npc_loot_bag.spawn", _public_bag(bag))
+	_broadcast(server_instance, &"pirateworld.npc_loot_bag.spawn", _public_bag(bag))
 	return {"ok": true, "bag": _public_bag(bag)}
+
+
+func _resolve_server_instance(node: Node):
+	var current: Node = node
+	while current != null:
+		# ServerInstance is the first ancestor exposing the instance player API.
+		# NPCs can be nested under organizational nodes inside Map, so fixed
+		# get_parent().get_parent() traversal is not safe for loot spawning.
+		if current.has_method("get_player") and current.has_method("despawn_player"):
+			return current
+		current = current.get_parent()
+	return null
 
 
 func list_for_instance(instance_name: String) -> Array:

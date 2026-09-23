@@ -6,4 +6,4 @@ func data_request_handler(peer_id: int, instance: ServerInstance, args: Dictiona
 	var service = WorldServer.curr.instance_manager.npc_loot_bag_service
 	if service == null:
 		return {"ok": false, "bags": []}
-	return {"ok": true, "bags": service.list_for_instance(str(instance.name))}
+	return {"ok": true, "bags": service.list_for_instance(str(instance.instance_resource.instance_name))}

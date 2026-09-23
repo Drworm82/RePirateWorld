@@ -5,15 +5,16 @@ Phase 2 adds a minimal server-authoritative, turn-based 1v1 ground-combat layer.
 The existing real-time weapon/combat system remains intact and is not replaced.
 
 ## Encounter
-- Existing HostileNpc entities whose enemy_type is bandit start the turn-based encounter when a player enters their detection area.
-- The Bandit remains the existing world entity and uses its existing visual/resource definition.
-- While the turn battle is active, the Bandit AI and movement are suspended.
+- Existing HostileNpc entities whose enemy_type belongs to the goblin family (`goblin_*`) or is `bandit` start the turn-based encounter when a player enters their detection area.
+- Goblins are the first accessible progression family for the MVP; Bandits remain wired for a later progression tier.
+- The existing world entity and its visual/resource definition are preserved.
+- While the turn battle is active, the enemy AI and movement are suspended.
 
 ## Combat rules
 ### Turn order
 Initial order is derived from speed:
 - Player speed = existing MOVE_SPEED / 10, minimum 1.
-- Bandit MVP speed = 5.
+- Enemy MVP speed = 5.
 - Higher value acts first.
 - Ties go to the player.
 This reuses the existing stat system without introducing a new persistent stat solely for the MVP.
@@ -49,13 +50,13 @@ The client owns only the presentation and action request UI.
 ## Validation matrix
 | Test | Expected | Status |
 |---|---|---|
-| Encounter | Entering a Bandit starts the turn UI | Pending manual test |
+| Encounter | Entering a Goblin starts the turn UI | Pending manual test |
 | Turn order | Player/enemy turns alternate | Pending manual test |
 | Attack | Enemy HP decreases | Pending manual test |
 | Ability | Heavy attack differs from basic attack | Pending manual test |
 | Item | Potion heals and is consumed | Pending manual test |
 | Defend | Next incoming damage is reduced | Pending manual test |
-| Victory | Bandit dies and existing reward flow runs | Pending manual test |
+| Victory | Goblin dies and existing reward flow runs | Pending manual test |
 | Defeat | Player death uses existing Death Bag flow | Pending manual test |
 | Persistence | Death Bag survives restart after combat death | Pending manual test |
 | Multiplayer isolation | Two players do not share battle state | Pending manual test |

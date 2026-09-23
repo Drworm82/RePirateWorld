@@ -7,6 +7,8 @@ extends RefCounted
 ## A real provider must supply a server-verifiable reward_id.
 
 const GOLD_REWARD: int = 1
+const COOLDOWN_MS: int = 5_000
+const RATE_LIMIT_ENDPOINT: StringName = &"rewarded_ad.claim"
 
 
 func claim_simulated(instance: ServerInstance, peer_id: int) -> Dictionary:
@@ -20,6 +22,9 @@ func claim_simulated(instance: ServerInstance, peer_id: int) -> Dictionary:
 	var live_player: Player = instance.get_player(peer_id)
 	if live_player == null or live_player.is_dead:
 		return {"ok": false, "reason": "player_dead"}
+
+	if not RateLimiter.check(peer_id, RATE_LIMIT_ENDPOINT, 1, COOLDOWN_MS):
+		return {"ok": false, "reason": "rate_limited"}
 
 	return _grant_gold(instance, player, GOLD_REWARD, "simulated")
 

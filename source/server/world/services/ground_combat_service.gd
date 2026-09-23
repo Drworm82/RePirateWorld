@@ -4,6 +4,7 @@ extends RefCounted
 ## It reuses Player, HostileNpc, inventory, stats, loot and Player.die().
 
 const BANDIT_TYPE: StringName = &"bandit"
+const GOBLIN_PREFIX: String = "goblin_"
 const ENEMY_SPEED: int = 5
 const ITEM_HEAL_ID: int = 1
 const ITEM_HEAL_AMOUNT: int = 20
@@ -21,7 +22,8 @@ func try_start(player: Player, enemy: HostileNpc) -> bool:
 		return false
 	if not GameMode.is_world_server():
 		return false
-	if enemy.enemy_type != BANDIT_TYPE:
+	var enemy_type := String(enemy.enemy_type)
+	if enemy.enemy_type != BANDIT_TYPE and not enemy_type.begins_with(GOBLIN_PREFIX):
 		return false
 	if player.is_dead or enemy.is_dead:
 		return false

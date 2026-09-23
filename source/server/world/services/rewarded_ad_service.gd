@@ -47,17 +47,26 @@ func claim_verified(instance: ServerInstance, peer_id: int, reward_id: String) -
 	if live_player == null or live_player.is_dead:
 		return {"ok": false, "reason": "player_dead"}
 
-	var db = instance.world_server.database.db
+	if not RateLimiter.check(peer_id, RATE_LIMIT_ENDPOINT, 1, COOLDOWN_MS):
+		return {"ok": false, "reason": "rate_limited"}
+
+	var database: WorldDatabase = instance.world_server.database
+	var db = database.db
 	var created_at_ms := int(Time.get_unix_time_from_system() * 1000.0)
-	# Reserve the provider receipt before granting currency. The primary key makes
-	# concurrent duplicate claims collapse to one successful insert.
+
+	# Reserve the provider receipt and grant the currency in one DB transaction.
+	# The primary key makes concurrent duplicate claims collapse to one insert,
+	# while the transaction prevents a receipt from being consumed without gold.
+	database.store.begin()
 	db.query_with_bindings(
 		"INSERT OR IGNORE INTO rewarded_ad_receipts(reward_id, player_id, reward_amount, created_at_ms) VALUES(?, ?, ?, ?);",
 		[reward_id, int(player.player_id), GOLD_REWARD, created_at_ms]
 	)
 	if db.query("SELECT changes() AS changed;") == null:
+		database.store.rollback()
 		return {"ok": false, "reason": "receipt_check_failed"}
 	if db.query_result.is_empty() or int(db.query_result[0].get("changed", 0)) != 1:
+		database.store.rollback()
 		ServerLog.warn("[REWARDED_AD] duplicate reward_id=%s peer_id=%d player_id=%d" % [
 			reward_id, peer_id, int(player.player_id)
 		])
@@ -65,8 +74,10 @@ func claim_verified(instance: ServerInstance, peer_id: int, reward_id: String) -
 
 	var result := _grant_gold(instance, player, GOLD_REWARD, "verified")
 	if not bool(result.get("ok", false)):
+		database.store.rollback()
 		return result
 
+	database.store.commit()
 	return result
 
 

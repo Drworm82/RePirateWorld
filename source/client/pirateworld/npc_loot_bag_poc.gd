@@ -13,16 +13,27 @@ var _instance_ref: InstanceClient = null
 var _syncing: bool = false
 var _opened_bag_id: int = 0
 
+# One bridge per persistent Client object. This is stronger than a scene-group
+# check because duplicate bridge instances can be created before either one
+# becomes discoverable through the scene tree.
+static var _bridges_by_client_id: Dictionary = {}
+
 
 func _ready() -> void:
-	# Keep a single bridge without relying on Client metadata.
-	var existing = get_tree().get_first_node_in_group("npc_loot_bag_client_bridge")
-	if existing != null and existing != self:
+	if not GameMode.is_client():
+		queue_free()
+		return
+	var client_id := Client.get_instance_id()
+	var existing = _bridges_by_client_id.get(client_id)
+	if existing is Node and is_instance_valid(existing) and existing != self:
+		print("[NPC_LOOT_BAG_CLIENT] duplicate_bridge_rejected client_id=%d existing_id=%d self_id=%d" % [client_id, existing.get_instance_id(), get_instance_id()])
 		set_process(false)
 		queue_free()
 		return
+	_bridges_by_client_id[client_id] = self
+	tree_exiting.connect(_on_tree_exiting)
 	add_to_group("npc_loot_bag_client_bridge")
-	print("[NPC_LOOT_BAG_CLIENT] ready")
+	print("[NPC_LOOT_BAG_CLIENT] ready client_id=%d bridge_id=%d" % [client_id, get_instance_id()])
 	if not GameMode.is_client():
 		queue_free()
 		return
@@ -30,6 +41,13 @@ func _ready() -> void:
 	Client.subscribe(&"pirateworld.npc_loot_bag.remove", _on_bag_remove)
 	Client.subscribe(&"pirateworld.npc_loot_bag.changed", _on_bag_changed)
 	call_deferred("_refresh_instance")
+
+
+func _on_tree_exiting() -> void:
+	if is_instance_valid(Client):
+		var client_id := Client.get_instance_id()
+		if _bridges_by_client_id.get(client_id) == self:
+			_bridges_by_client_id.erase(client_id)
 
 
 func _process(_delta: float) -> void:

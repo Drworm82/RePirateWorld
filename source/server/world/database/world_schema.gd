@@ -51,6 +51,9 @@ static func ensure_schema(db) -> void:
 	if version < 14:
 		_migration_v14(db)
 		_set_schema_version(db, 14)
+	if version < 15:
+		_migration_v15(db)
+		_set_schema_version(db, 15)
 
 
 static func _migration_v1(db) -> void:
@@ -288,6 +291,14 @@ static func _migration_v14(db) -> void:
 		db.query("ALTER TABLE boats ADD COLUMN departure_ms INTEGER NOT NULL DEFAULT 0;")
 	if not _column_exists(db, "boats", "eta_ms"):
 		db.query("ALTER TABLE boats ADD COLUMN eta_ms INTEGER NOT NULL DEFAULT 0;")
+
+## v15: Persist the origin of an active autonav route so progress remains
+## deterministic after a server/client restart.
+static func _migration_v15(db) -> void:
+	if not _column_exists(db, "boats", "route_start_x"):
+		db.query("ALTER TABLE boats ADD COLUMN route_start_x REAL NOT NULL DEFAULT 0.0;")
+	if not _column_exists(db, "boats", "route_start_y"):
+		db.query("ALTER TABLE boats ADD COLUMN route_start_y REAL NOT NULL DEFAULT 0.0;")
 
 static func _migration_v11(db) -> void:
 	if not _column_exists(db, "death_bags", "state"):

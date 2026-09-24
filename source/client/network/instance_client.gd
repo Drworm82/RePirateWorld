@@ -295,7 +295,7 @@ func ready_to_enter_instance() -> void:
 
 #region spawn/despawn
 @rpc("authority", "call_remote", "reliable", 0)
-func spawn_player(player_id: int) -> void:
+func spawn_player(player_id: int, spawn_position: Vector2 = Vector2.ZERO) -> void:
 	var new_player: Player
 	
 	if player_id == multiplayer.get_unique_id():
@@ -321,6 +321,13 @@ func spawn_player(player_id: int) -> void:
 	
 	if not new_player.is_inside_tree():
 		instance_map.add_child(new_player)
+
+	# The local player owns :position, so the server's spawn baseline alone is not
+	# enough when this node is reused across instance changes. The spawn RPC carries
+	# the authoritative destination; apply it after reparenting so the local player
+	# starts the new instance at the server-selected spawn instead of its old map position.
+	if player_id == multiplayer.get_unique_id() and spawn_position != Vector2.ZERO:
+		new_player.global_position = spawn_position
 		# Click-to-inspect: the player scene carries a ClickableArea (ProfileClickArea).
 		# Wire its `clicked` to open the profile — the GATE (holster-mode) lives in the
 		# handler, in CLIENT code, because Player.gd must not reference ClientState (cycle).

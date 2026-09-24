@@ -459,7 +459,8 @@ func end_for_enemy(enemy: HostileNpc) -> void:
 		return
 	_build_turn_order(battle, false)
 	_push_state(battle, "enemy_removed")
-	_advance_turn(battle)
+	if _current_token(battle) == "e:%d" % enemy_id:
+		_advance_turn(battle)
 
 
 func _end_encounter(battle: Dictionary, result: String) -> void:

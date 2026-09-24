@@ -203,6 +203,11 @@ func spawn_player(peer_id: int) -> void:
 	var syn: StateSynchronizer = player.state_synchronizer
 	syn.set_by_path(^":position", spawn_position)
 
+	# LocalPlayer is client-authoritative for :position. During an instance switch
+	# the client reuses the same LocalPlayer node, so it retains the previous map's
+	# coordinates unless we explicitly snap it to the authoritative spawn here.
+	WorldServer.curr.data_push.rpc_id(peer_id, &"player.teleport", {"position": spawn_position})
+
 	print_debug("baseline server pairs:", syn.capture_baseline())
 	
 	# Register in sync manager AFTER we seeded states.

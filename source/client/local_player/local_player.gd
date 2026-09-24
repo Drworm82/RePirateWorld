@@ -917,6 +917,9 @@ func process_boat_input() -> void:
 		elif str(_boat_state.get("state", "")) == "docked":
 			Client.request_data(&"boat.board", Callable(), {}, InstanceClient.current.name if InstanceClient.current != null else "")
 	_boat_e_was_down = e_down
+	var boat_state := str(_boat_state.get("state", ""))
+	if boat_state != "boarded" and boat_state != "sailing":
+		return
 	if InstanceClient.current == null:
 		return
 	var command := "stop"

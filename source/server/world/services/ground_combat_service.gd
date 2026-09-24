@@ -68,6 +68,7 @@ func try_start(player: Player, enemy: HostileNpc) -> bool:
 		"turn_index": 0,
 		"player_defending": {peer_id: false},
 		"enemy_defending": {enemy_id: false},
+		"enemy_target_index": 0,
 	}
 	_encounters[id] = battle
 	_player_encounter[peer_id] = id
@@ -233,10 +234,17 @@ func _enemy_turn(battle: Dictionary, enemy_id: int) -> void:
 func _choose_target(battle: Dictionary) -> int:
 	var peers: Array = battle["players"].keys()
 	peers.sort()
-	for peer_id in peers:
+	if peers.is_empty():
+		return 0
+
+	var start_index := clampi(int(battle.get("enemy_target_index", 0)), 0, peers.size() - 1)
+	for offset in range(peers.size()):
+		var index := (start_index + offset) % peers.size()
+		var peer_id := int(peers[index])
 		var player: Player = battle["players"][peer_id]
 		if is_instance_valid(player) and not player.is_dead:
-			return int(peer_id)
+			battle["enemy_target_index"] = (index + 1) % peers.size()
+			return peer_id
 	return 0
 
 

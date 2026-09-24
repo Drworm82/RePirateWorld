@@ -136,7 +136,7 @@ func _ready() -> void:
 		RenderingServer.set_default_clear_color(map_background_color)
 
 
-func overwold_port_setup(port: BoatPort, pos: Vector2, label: String) -> void:
+func setup_boat_port(port: BoatPort, pos: Vector2, label: String) -> void:
 	port.name = "BoatPort"
 	port.position = pos
 	port.destination_label = label

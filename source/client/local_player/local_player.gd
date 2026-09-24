@@ -1045,7 +1045,7 @@ func _update_boat_navigation_window() -> void:
 			"ready":
 				status.text = "Barco listo. Selecciona un destino."
 			"navigating":
-				status.text = "Navegando a %s\\nETA: %s" % [_boat_destination_label(destination), _format_eta(eta)]
+				status.text = "Navegando a %s\nETA: %s" % [_boat_destination_label(destination), _format_eta(eta)]
 			"paused_at_sea":
 				status.text = "PAUSED_AT_SEA — destino: %s" % _boat_destination_label(destination)
 			"arrived":
@@ -1109,6 +1109,8 @@ func _boat_resume() -> void:
 func _boat_disembark() -> void:
 	var result := await Client.request_data_await(&"boat.disembark", {}, InstanceClient.current.name if InstanceClient.current != null else "")
 	_handle_boat_request_result(result, "No se pudo desembarcar.")
+	if _boat_navigation_window != null and is_instance_valid(_boat_navigation_window):
+		_boat_navigation_window.hide()
 
 func _handle_boat_request_result(result: Array, fallback: String) -> void:
 	if result.size() < 2 or result[1] != OK:

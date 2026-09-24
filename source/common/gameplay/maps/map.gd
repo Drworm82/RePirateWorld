@@ -128,7 +128,7 @@ func _ready() -> void:
 		setup_boat_port(overworld_port, Vector2(2700, 1050), "Woodland")
 	elif name == "Woodland":
 		var woodland_port: BoatPort = preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
-		overwold_port_setup(woodland_port, Vector2(520, 520), "Overworld")
+		setup_boat_port(woodland_port, Vector2(520, 520), "Overworld")
 
 	# Components (warpers, stations, tables, flags, duel masters, NPC shops/quests)
 	# self-register via Map.of() + register_keyed() from their own _ready.

@@ -237,6 +237,7 @@ func _other_land(instance_name: String) -> String:
 func _public_state(boat: Dictionary) -> Dictionary:
 	return {
 		"boat_id": int(boat.get("boat_id", 0)),
+		"owner_player_id": int(boat.get("owner_player_id", 0)),
 		"tier": int(boat.get("tier", 0)),
 		"state": str(boat.get("state", "docked")),
 		"instance_name": str(boat.get("instance_name", "")),
@@ -256,7 +257,20 @@ func _push_to_peer(peer_id: int, boat: Dictionary) -> void:
 	_push_state(peer_id, boat, p)
 
 func _push_state(peer_id: int, boat: Dictionary, player_position: Vector2) -> void:
-	world_server.data_push.rpc_id(peer_id, &"boat.state", {
+	var payload := {
 		"boat": _public_state(boat),
 		"player_position": player_position,
-	})
+	}
+	var current := world_server.instance_manager.find_instance_for_peer(peer_id)
+	if current == null:
+		world_server.data_push.rpc_id(peer_id, &"boat.state", payload)
+		return
+	for target_peer: int in current.connected_peers:
+		var target_player := current.get_player(target_peer)
+		var target_position := player_position
+		if target_peer != peer_id:
+			target_position = Vector2(float(boat.get("x", 0.0)), float(boat.get("y", 0.0)))
+		world_server.data_push.rpc_id(target_peer, &"boat.state", {
+			"boat": _public_state(boat),
+			"player_position": target_position,
+		})

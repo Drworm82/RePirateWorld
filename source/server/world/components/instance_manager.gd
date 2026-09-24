@@ -122,7 +122,7 @@ func _on_peer_connected(peer_id: int) -> void:
 				jail_inst = jail_res.get_instance(0)
 			if jail_inst != null:
 				charge_new_instance.rpc_id(peer_id, jail_res.map_path, jail_inst.name)
-				jail_inst.awaiting_peers[peer_id] = {}
+				jail_inst.awaiting_peers[peer_id] = {"target_id": 1}
 				return
 
 	# First-ever login? current_instance can't tell us — it's in-memory only (set on spawn,
@@ -145,7 +145,7 @@ func _on_peer_connected(peer_id: int) -> void:
 			target_inst = target_res.get_instance(0)
 		if target_inst != null:
 			charge_new_instance.rpc_id(peer_id, target_res.map_path, target_inst.name)
-			target_inst.awaiting_peers[peer_id] = {} # {} = the map's default spawn point (index 0)
+			target_inst.awaiting_peers[peer_id] = {"target_id": 1} # JailRoom warper_id 1 is the authored cell spawn/exit.
 			return
 
 	# Fallback: the tavern/jail map is missing or mid-load — land in the default overworld so
@@ -344,7 +344,7 @@ func send_player_to_jail(peer_id: int) -> bool:
 	if jail_res.charged_instances.is_empty():
 		queue_charge_instance(
 			jail_res,
-			player_switch_instance.bind(0, player, current_inst)
+			player_switch_instance.bind(1, player, current_inst)
 		)
 	else:
 		player_switch_instance(jail_res.get_instance(), 0, player, current_inst)

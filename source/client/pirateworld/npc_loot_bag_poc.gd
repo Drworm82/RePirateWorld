@@ -78,8 +78,6 @@ func _refresh_instance() -> void:
 	_syncing = true
 	var result: Array = await Client.request_data_await(&"npc_loot_bag.list", {}, instance.name)
 	_syncing = false
-	if epoch != _loot_window_epoch or _opened_bag_id != bag_id:
-		return
 	if result.size() < 2 or result[1] != OK:
 		return
 	var payload: Dictionary = result[0]

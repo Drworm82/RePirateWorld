@@ -71,8 +71,10 @@ func list_for_instance(instance_name: String) -> Array:
 
 
 func open(peer_id: int, instance, bag_id: int) -> Dictionary:
+	ServerLog.info("[NPC_LOOT_BAG_DIAG] open_call peer=%d bag_id=%d instance=%s" % [peer_id, bag_id, str(instance.instance_resource.instance_name)])
 	var bag := _get_bag(instance, bag_id)
 	if bag.is_empty():
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] open_result peer=%d bag_id=%d ok=false reason=not_found" % [peer_id, bag_id])
 		return {"ok": false, "reason": "not_found"}
 
 	var player = instance.get_player(peer_id)
@@ -80,13 +82,15 @@ func open(peer_id: int, instance, bag_id: int) -> Dictionary:
 		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=player_not_found" % [peer_id, bag_id])
 		return {"ok": false, "reason": "player_not_found"}
 	if player.global_position.distance_to(bag.position) > PICKUP_DISTANCE:
-		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=too_far" % [peer_id, bag_id])
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] open_result peer=%d bag_id=%d ok=false reason=too_far" % [peer_id, bag_id])
 		return {"ok": false, "reason": "too_far"}
 
 	_expire_lock_if_needed(bag_id)
 	if _locks.has(bag_id) and int(_locks[bag_id].get("peer_id", -1)) != peer_id:
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] open_result peer=%d bag_id=%d ok=false reason=in_use lock_peer=%d" % [peer_id, bag_id, int(_locks[bag_id].get("peer_id", -1))])
 		return {"ok": false, "reason": "in_use"}
 	_locks[bag_id] = {"peer_id": peer_id, "last_action_ms": Time.get_ticks_msec()}
+	ServerLog.info("[NPC_LOOT_BAG_DIAG] open_result peer=%d bag_id=%d ok=true" % [peer_id, bag_id])
 
 	return {
 		"ok": true,

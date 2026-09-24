@@ -203,7 +203,6 @@ func spawn_player(peer_id: int) -> void:
 	var syn: StateSynchronizer = player.state_synchronizer
 	syn.set_by_path(^":position", spawn_position)
 
-
 	print_debug("baseline server pairs:", syn.capture_baseline())
 	
 	# Register in sync manager AFTER we seeded states.

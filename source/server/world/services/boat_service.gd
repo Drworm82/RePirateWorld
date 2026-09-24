@@ -121,6 +121,8 @@ func start_autonav(peer_id: int, destination: String, target_x: float = 0.0, tar
 	boat["target_y"] = target.y
 	boat["departure_ms"] = now_ms
 	boat["eta_ms"] = eta_ms
+	boat["route_start_x"] = p.x
+	boat["route_start_y"] = p.y
 	boat["heading"] = (target - p).angle()
 	world_server.database.store.save_boat(boat)
 	_boats[player.player_id] = boat
@@ -140,6 +142,8 @@ func pause_autonav(peer_id: int) -> Dictionary:
 	boat["state"] = "paused_at_sea"
 	boat["departure_ms"] = 0
 	boat["eta_ms"] = 0
+	boat["route_start_x"] = 0.0
+	boat["route_start_y"] = 0.0
 	world_server.database.store.save_boat(boat)
 	_push_state_for_owner(peer_id, boat)
 	return {"ok": true, "boat": _public_state(boat)}
@@ -178,6 +182,8 @@ func disembark(peer_id: int) -> Dictionary:
 	boat["target_y"] = 0.0
 	boat["departure_ms"] = 0
 	boat["eta_ms"] = 0
+	boat["route_start_x"] = 0.0
+	boat["route_start_y"] = 0.0
 	world_server.database.store.save_boat(boat)
 	_boats[player.player_id] = boat
 
@@ -242,12 +248,7 @@ func _update_autonav(owner_id: int, boat: Dictionary) -> void:
 	var target := Vector2(float(boat.get("target_x", 0.0)), float(boat.get("target_y", 0.0)))
 	var total_ms := float(eta_ms - departure_ms)
 	var progress := clampf(float(now_ms - departure_ms) / total_ms, 0.0, 1.0)
-	var route_start: Vector2 = start
-	if boat.has("_route_start_x"):
-		route_start = Vector2(float(boat["_route_start_x"]), float(boat["_route_start_y"]))
-	else:
-		boat["_route_start_x"] = start.x
-		boat["_route_start_y"] = start.y
+	var route_start := Vector2(float(boat.get("route_start_x", start.x)), float(boat.get("route_start_y", start.y)))
 	boat["x"] = lerpf(route_start.x, target.x, progress)
 	boat["y"] = lerpf(route_start.y, target.y, progress)
 
@@ -257,8 +258,8 @@ func _update_autonav(owner_id: int, boat: Dictionary) -> void:
 		boat["state"] = "arrived"
 		boat["departure_ms"] = 0
 		boat["eta_ms"] = 0
-		boat.erase("_route_start_x")
-		boat.erase("_route_start_y")
+		boat["route_start_x"] = 0.0
+		boat["route_start_y"] = 0.0
 	world_server.database.store.save_boat(boat)
 
 	var peer_id: int = world_server.player_id_to_peer_id.get(owner_id, 0)
@@ -305,6 +306,8 @@ func _public_state(boat: Dictionary) -> Dictionary:
 		"target_x": float(boat.get("target_x", 0.0)),
 		"target_y": float(boat.get("target_y", 0.0)),
 		"eta_seconds": eta_seconds,
+		"route_start_x": float(boat.get("route_start_x", 0.0)),
+		"route_start_y": float(boat.get("route_start_y", 0.0)),
 	}
 
 func _push_to_peer(peer_id: int, boat: Dictionary) -> void:

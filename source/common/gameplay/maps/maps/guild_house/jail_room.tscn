@@ -34,7 +34,6 @@ metadata/_custom_type_script = "uid://ddps5vwhnf048"
 [node name="JailRoom" type="Node2D" unique_id=288046526]
 y_sort_enabled = true
 script = ExtResource("1_cvgnw")
-spawn_points = Array[Vector2]([Vector2(320, 184)])
 metadata/_custom_type_script = "uid://7mbux4mybta0"
 
 [node name="Floor" type="TileMapLayer" parent="." unique_id=1165481526]
@@ -61,7 +60,6 @@ target_id = 1
 
 [node name="WarperTavern" parent="." unique_id=1414716116 instance=ExtResource("3_sxpnr")]
 position = Vector2(136, 152)
-warper_id = 1
 
 [node name="CharterClerk" parent="." unique_id=1922057613 instance=ExtResource("5_ukoid")]
 position = Vector2(328.8266, 87.64915)

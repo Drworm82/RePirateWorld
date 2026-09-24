@@ -104,7 +104,7 @@ func start_autonav(peer_id: int, destination: String, target_x: float = 0.0, tar
 		boat["x"] = target.x
 		boat["y"] = target.y
 		boat["state"] = "arrived"
-		boat["destination_instance"] = destination if destination == WOODLAND_INSTANCE_NAME or destination == OVERWORLD_INSTANCE_NAME else ""
+		boat["destination_instance"] = destination
 		boat["target_x"] = target.x
 		boat["target_y"] = target.y
 		boat["departure_ms"] = 0

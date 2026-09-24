@@ -199,7 +199,6 @@ func _enemy_turn(battle: Dictionary) -> void:
 	if enemy_max > 0.0 and enemy_hp / enemy_max <= 0.30:
 		battle["enemy_defending"] = true
 		battle["turn"] = &"player"
-		battle["player_defending"] = false
 		_battles[peer_id] = battle
 		_push_state(battle, "enemy_defend")
 		return
@@ -279,3 +278,18 @@ func _end_battle(peer_id: int, result: String) -> void:
 func end_for_peer(peer_id: int) -> void:
 	if _battles.has(peer_id):
 		_end_battle(peer_id, "cancelled")
+
+
+## Ends any active battle whose NPC target has died outside the turn-based battle.
+## Other players may still damage/kill a shared NPC; the owner of the active
+## encounter must be released so their client cannot remain locked on a dead target.
+func end_for_enemy(enemy: HostileNpc) -> void:
+	if enemy == null:
+		return
+	var peers_to_end: Array[int] = []
+	for peer_id: int in _battles.keys():
+		var battle: Dictionary = _battles[peer_id]
+		if battle.get("enemy", null) == enemy:
+			peers_to_end.append(peer_id)
+	for peer_id: int in peers_to_end:
+		_end_battle(peer_id, "interrupted")

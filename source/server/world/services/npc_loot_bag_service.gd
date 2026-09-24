@@ -77,8 +77,10 @@ func open(peer_id: int, instance, bag_id: int) -> Dictionary:
 
 	var player = instance.get_player(peer_id)
 	if player == null or player.player_resource == null:
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=player_not_found" % [peer_id, bag_id])
 		return {"ok": false, "reason": "player_not_found"}
 	if player.global_position.distance_to(bag.position) > PICKUP_DISTANCE:
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=too_far" % [peer_id, bag_id])
 		return {"ok": false, "reason": "too_far"}
 
 	_expire_lock_if_needed(bag_id)
@@ -99,9 +101,11 @@ func loot(peer_id: int, instance, bag_id: int, slot_uid: String) -> Dictionary:
 	ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_call peer=%d bag_id=%d slot=%s" % [peer_id, bag_id, slot_uid])
 	var bag := _get_bag(instance, bag_id)
 	if bag.is_empty():
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=not_found" % [peer_id, bag_id])
 		_release_lock(bag_id)
 		return {"ok": false, "reason": "not_found"}
 	if not _owns_lock(bag_id, peer_id):
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=not_open" % [peer_id, bag_id])
 		return {"ok": false, "reason": "not_open"}
 
 	var player = instance.get_player(peer_id)
@@ -189,12 +193,14 @@ func loot_all(peer_id: int, instance, bag_id: int) -> Dictionary:
 			bag.contents[slot_uid] = slot
 
 	if moved_total <= 0:
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=inventory_full slots=%d" % [peer_id, bag_id, bag.contents.size()])
 		return {"ok": false, "reason": "inventory_full", "contents": bag.contents}
 
 	world_server.database.save_player(player.player_resource)
 	_touch_lock(bag_id, peer_id)
 
 	if bag.contents.is_empty():
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=true moved=%d emptied=true" % [peer_id, bag_id, moved_total])
 		_delete_bag(instance, bag_id)
 		return {"ok": true, "bag_id": bag_id, "moved": moved_total, "emptied": true, "contents": {}}
 

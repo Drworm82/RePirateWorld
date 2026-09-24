@@ -1086,7 +1086,7 @@ func _format_eta(seconds: float) -> String:
 	return "%02d:%02d" % [total / 60, total % 60]
 
 func _boat_start_destination(destination: String) -> void:
-	var result := await Client.request_data_await(&"boat.autonav.start", {"destination": destination}, InstanceClient.current.name if InstanceClient.current != null else "")
+	var result: Array = await Client.request_data_await(&"boat.autonav.start", {"destination": destination}, InstanceClient.current.name if InstanceClient.current != null else "")
 	_handle_boat_request_result(result, "No se pudo iniciar la autonavegación.")
 
 func _boat_start_coordinates(x_edit: LineEdit, y_edit: LineEdit) -> void:
@@ -1095,19 +1095,19 @@ func _boat_start_coordinates(x_edit: LineEdit, y_edit: LineEdit) -> void:
 	if absf(x) > 1000.0 or absf(y) > 520.0:
 		Toaster.toast("Coordenadas fuera del océano.")
 		return
-	var result := await Client.request_data_await(&"boat.autonav.start", {"destination": "coordinates", "target_x": x, "target_y": y}, InstanceClient.current.name if InstanceClient.current != null else "")
+	var result: Array = await Client.request_data_await(&"boat.autonav.start", {"destination": "coordinates", "target_x": x, "target_y": y}, InstanceClient.current.name if InstanceClient.current != null else "")
 	_handle_boat_request_result(result, "No se pudo iniciar la autonavegación.")
 
 func _boat_pause() -> void:
-	var result := await Client.request_data_await(&"boat.autonav.pause", {}, InstanceClient.current.name if InstanceClient.current != null else "")
+	var result: Array = await Client.request_data_await(&"boat.autonav.pause", {}, InstanceClient.current.name if InstanceClient.current != null else "")
 	_handle_boat_request_result(result, "No se pudo pausar la navegación.")
 
 func _boat_resume() -> void:
-	var result := await Client.request_data_await(&"boat.autonav.resume", {}, InstanceClient.current.name if InstanceClient.current != null else "")
+	var result: Array = await Client.request_data_await(&"boat.autonav.resume", {}, InstanceClient.current.name if InstanceClient.current != null else "")
 	_handle_boat_request_result(result, "No se pudo reanudar la navegación.")
 
 func _boat_disembark() -> void:
-	var result := await Client.request_data_await(&"boat.disembark", {}, InstanceClient.current.name if InstanceClient.current != null else "")
+	var result: Array = await Client.request_data_await(&"boat.disembark", {}, InstanceClient.current.name if InstanceClient.current != null else "")
 	_handle_boat_request_result(result, "No se pudo desembarcar.")
 	if _boat_navigation_window != null and is_instance_valid(_boat_navigation_window):
 		_boat_navigation_window.hide()

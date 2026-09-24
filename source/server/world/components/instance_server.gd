@@ -212,7 +212,7 @@ func spawn_player(peer_id: int) -> void:
 	connected_peers.append(peer_id)
 	if world_server != null and world_server.instance_manager != null and world_server.instance_manager.boat_service != null:
 		world_server.instance_manager.boat_service.on_player_spawned(peer_id, player, self)
-	_propagate_spawn(peer_id)
+	_propagate_spawn(peer_id, spawn_position)
 
 
 func instantiate_player(peer_id: int) -> Player:

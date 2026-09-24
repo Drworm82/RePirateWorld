@@ -295,6 +295,8 @@ func _loot_slot(instance_name: String, bag_id: int, slot_uid: String) -> void:
 		{"bag_id": bag_id, "slot_uid": slot_uid},
 		instance_name
 	)
+	if epoch != _loot_window_epoch or _opened_bag_id != bag_id:
+		return
 	if result.size() < 2 or result[1] != OK:
 		return
 	var payload: Dictionary = result[0]
@@ -332,6 +334,8 @@ func _loot_all(instance_name: String, bag_id: int) -> void:
 			var refreshed: Array = await Client.request_data_await(
 				&"npc_loot_bag.open", {"bag_id": bag_id}, instance_name
 			)
+			if epoch != _loot_window_epoch or _opened_bag_id != bag_id:
+				return
 			if refreshed.size() >= 2 and refreshed[1] == OK and bool(refreshed[0].get("ok", false)):
 				_open_loot_window(InstanceClient.current, refreshed[0])
 			Toaster.toast("Se recuperó lo que cabía en el inventario.")

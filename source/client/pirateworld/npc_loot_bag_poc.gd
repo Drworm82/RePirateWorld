@@ -12,6 +12,8 @@ var _instance_name: String = ""
 var _instance_ref: InstanceClient = null
 var _syncing: bool = false
 var _opened_bag_id: int = 0
+var _loot_window: Window = null
+var _loot_window_epoch: int = 0
 
 # One bridge per persistent Client object. This is stronger than a scene-group
 # check because duplicate bridge instances can be created before either one
@@ -76,6 +78,8 @@ func _refresh_instance() -> void:
 	_syncing = true
 	var result: Array = await Client.request_data_await(&"npc_loot_bag.list", {}, instance.name)
 	_syncing = false
+	if epoch != _loot_window_epoch or _opened_bag_id != bag_id:
+		return
 	if result.size() < 2 or result[1] != OK:
 		return
 	var payload: Dictionary = result[0]
@@ -140,15 +144,19 @@ func _on_bag_remove(payload: Dictionary) -> void:
 
 
 func _on_bag_changed(payload: Dictionary) -> void:
-	if _opened_bag_id <= 0 or int(payload.get("bag_id", 0)) != _opened_bag_id:
+	var bag_id := int(payload.get("bag_id", 0))
+	if _opened_bag_id <= 0 or bag_id != _opened_bag_id:
 		return
+	var epoch := _loot_window_epoch
 	var instance := InstanceClient.current
 	if instance == null:
 		return
 	var result: Array = await Client.request_data_await(
-		&"npc_loot_bag.open", {"bag_id": _opened_bag_id}, instance.name
+		&"npc_loot_bag.open", {"bag_id": bag_id}, instance.name
 	)
-	if result.size() >= 2 and result[1] == OK and bool(result[0].get("ok", false)) and _opened_bag_id > 0:
+	if epoch != _loot_window_epoch or _opened_bag_id != bag_id:
+		return
+	if result.size() >= 2 and result[1] == OK and bool(result[0].get("ok", false)):
 		_open_loot_window(instance, result[0])
 	else:
 		_close_loot_window()
@@ -188,8 +196,10 @@ func _try_pickup(instance: InstanceClient) -> void:
 func _open_loot_window(instance: InstanceClient, payload: Dictionary) -> void:
 	_close_loot_window()
 	_opened_bag_id = int(payload.get("bag_id", 0))
+	_loot_window_epoch += 1
 
 	var window := Window.new()
+	_loot_window = window
 	window.name = "NpcLootBagWindow"
 	window.title = "Botín de %s" % str(payload.get("owner_name", "Enemigo"))
 	window.size = Vector2i(360, 420)
@@ -279,6 +289,7 @@ func _make_loot_row(slot_uid: Variant, slot: Dictionary, take_callback: Callable
 
 
 func _loot_slot(instance_name: String, bag_id: int, slot_uid: String) -> void:
+	var epoch := _loot_window_epoch
 	var result: Array = await Client.request_data_await(
 		&"npc_loot_bag.loot",
 		{"bag_id": bag_id, "slot_uid": slot_uid},
@@ -305,6 +316,7 @@ func _loot_slot(instance_name: String, bag_id: int, slot_uid: String) -> void:
 
 
 func _loot_all(instance_name: String, bag_id: int) -> void:
+	var epoch := _loot_window_epoch
 	var result: Array = await Client.request_data_await(
 		&"npc_loot_bag.loot_all", {"bag_id": bag_id}, instance_name
 	)
@@ -332,8 +344,10 @@ func _loot_all(instance_name: String, bag_id: int) -> void:
 func _close_loot_window() -> void:
 	var bag_id := _opened_bag_id
 	_opened_bag_id = 0
-	var window := get_node_or_null("NpcLootBagWindow")
-	if window != null:
+	_loot_window_epoch += 1
+	var window := _loot_window
+	_loot_window = null
+	if is_instance_valid(window):
 		window.queue_free()
 	if bag_id > 0:
 		var instance := InstanceClient.current

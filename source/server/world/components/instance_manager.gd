@@ -18,6 +18,7 @@ const TAVERN_INSTANCE_NAME: String = "GuildHouse"
 const DEATH_BAG_SERVICE_SCRIPT: Script = preload("res://source/server/world/services/death_bag_service.gd")
 const GROUND_COMBAT_SERVICE_SCRIPT: Script = preload("res://source/server/world/services/ground_combat_service.gd")
 const NPC_LOOT_BAG_SERVICE_SCRIPT: Script = preload("res://source/server/world/services/npc_loot_bag_service.gd")
+const BOAT_SERVICE_SCRIPT: Script = preload("res://source/server/world/services/boat_service.gd")
 
 var loading_instances: Dictionary[InstanceResource, ServerInstance]
 var instance_collection: Dictionary[String, InstanceResource]
@@ -29,6 +30,7 @@ var default_instance: InstanceResource
 var death_bag_service: RefCounted
 var ground_combat_service: RefCounted
 var npc_loot_bag_service: RefCounted
+var boat_service: RefCounted
 
 
 func start_instance_manager() -> void:
@@ -36,7 +38,15 @@ func start_instance_manager() -> void:
 	death_bag_service = DEATH_BAG_SERVICE_SCRIPT.new(world_server.database.db, world_server)
 	ground_combat_service = GROUND_COMBAT_SERVICE_SCRIPT.new(world_server)
 	npc_loot_bag_service = NPC_LOOT_BAG_SERVICE_SCRIPT.new(world_server)
+	boat_service = BOAT_SERVICE_SCRIPT.new(world_server)
 	
+	var boat_tick: Timer = Timer.new()
+	boat_tick.name = "BoatSimulationTimer"
+	boat_tick.wait_time = 0.05
+	boat_tick.autostart = true
+	boat_tick.timeout.connect(func(): boat_service.tick(0.05))
+	add_sibling(boat_tick)
+
 	setup_global_commands_and_roles()
 
 	set_instance_collection.call_deferred()

@@ -1122,4 +1122,4 @@ func _handle_boat_request_result(result: Array, fallback: String) -> void:
 		return
 	if _boat_navigation_window != null and is_instance_valid(_boat_navigation_window):
 		_update_boat_navigation_window()
-		Client.request_data(&"boat.move", Callable(), {"command": command}, InstanceClient.current.name)
+	

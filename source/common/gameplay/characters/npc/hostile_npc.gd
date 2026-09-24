@@ -484,17 +484,19 @@ func _find_targets() -> void:
 	# players who were already inside the area after a respawn.
 	for candidate: Player in possible_targets:
 		if _is_target_valid(candidate) and _is_hostile_to(candidate):
+			if _try_join_existing_ground_combat(candidate):
+				return
 			targeted_player = candidate
 			enemy_state = EnemyState.CHASE
 			return
 
-func _try_join_player_ground_combat(player: Player) -> bool:
+func _try_join_existing_ground_combat(player: Player) -> bool:
 	if player == null or player.is_dead or not _uses_ground_combat():
 		return false
 	if WorldServer.curr == null or WorldServer.curr.instance_manager == null:
 		return false
 	var ground_combat_service = WorldServer.curr.instance_manager.ground_combat_service
-	if ground_combat_service == null:
+	if ground_combat_service == null or not ground_combat_service.is_player_locked(player.get_multiplayer_authority()):
 		return false
 	return ground_combat_service.try_start(player, self)
 

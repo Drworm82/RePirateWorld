@@ -121,17 +121,18 @@ func perform_action(peer_id: int, action: String, target_enemy_id: String = "") 
 		return {"ok": true, "ended": not _encounters.has(eid), "result": "fled"}
 
 	var result: Dictionary
+	var target_enemy: HostileNpc = null
 	match action:
 		"attack":
-			var enemy := _find_enemy(battle, target_enemy_id)
-			if enemy == null:
+			target_enemy = _find_enemy(battle, target_enemy_id)
+			if target_enemy == null:
 				return {"ok": false, "reason": "invalid_target"}
-			result = _attack(battle, player, enemy, false)
+			result = _attack(battle, player, target_enemy, false)
 		"ability":
-			var enemy := _find_enemy(battle, target_enemy_id)
-			if enemy == null:
+			target_enemy = _find_enemy(battle, target_enemy_id)
+			if target_enemy == null:
 				return {"ok": false, "reason": "invalid_target"}
-			result = _attack(battle, player, enemy, true)
+			result = _attack(battle, player, target_enemy, true)
 		"item":
 			result = _item(battle, player)
 		"defend":

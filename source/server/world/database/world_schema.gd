@@ -48,6 +48,9 @@ static func ensure_schema(db) -> void:
 	if version < 13:
 		_migration_v13(db)
 		_set_schema_version(db, 13)
+	if version < 14:
+		_migration_v14(db)
+		_set_schema_version(db, 14)
 
 
 static func _migration_v1(db) -> void:
@@ -273,6 +276,18 @@ static func _migration_v13(db) -> void:
 	db.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_boats_owner ON boats(owner_player_id);")
 	db.query("CREATE INDEX IF NOT EXISTS idx_boats_instance ON boats(instance_name);")
 
+
+## v14: Autonav state. Destination coordinates and timestamps make sea travel
+## deterministic and resumable even when the client is offline.
+static func _migration_v14(db) -> void:
+	if not _column_exists(db, "boats", "target_x"):
+		db.query("ALTER TABLE boats ADD COLUMN target_x REAL NOT NULL DEFAULT 0.0;")
+	if not _column_exists(db, "boats", "target_y"):
+		db.query("ALTER TABLE boats ADD COLUMN target_y REAL NOT NULL DEFAULT 0.0;")
+	if not _column_exists(db, "boats", "departure_ms"):
+		db.query("ALTER TABLE boats ADD COLUMN departure_ms INTEGER NOT NULL DEFAULT 0;")
+	if not _column_exists(db, "boats", "eta_ms"):
+		db.query("ALTER TABLE boats ADD COLUMN eta_ms INTEGER NOT NULL DEFAULT 0;")
 
 static func _migration_v11(db) -> void:
 	if not _column_exists(db, "death_bags", "state"):

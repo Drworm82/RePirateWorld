@@ -924,6 +924,14 @@ func _equip_weapon() -> void:
 
 ## Called by Character.take_damage when health hits zero (server-only).
 func die(killer: Character) -> void:
+	# Any active turn-based encounter targeting this NPC must be ended before
+	# death finalization. Another player is allowed to kill a shared NPC; the
+	# encounter owner simply receives an interrupted result and is unlocked.
+	if _uses_ground_combat() and WorldServer.curr != null and WorldServer.curr.instance_manager != null:
+		var ground_combat_service = WorldServer.curr.instance_manager.ground_combat_service
+		if ground_combat_service != null:
+			ground_combat_service.end_for_enemy(self)
+
 	# Death hooks (refactor P4): run BEFORE anything commits — an intercepting
 	# behavior (second wind) revives with zero credit/state leakage, since
 	# neither DEAD state, rewards, nor the died signal have fired yet. The

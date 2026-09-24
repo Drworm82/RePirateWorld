@@ -124,10 +124,10 @@ func _ready() -> void:
 	# map scenes do not need destructive .tscn rewrites. The server validates the same
 	# coordinates through BoatService; the node is also present on clients for visual feedback.
 	if name == "Overworld":
-		var overworld_port := preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
+		var overworld_port: BoatPort = preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
 		overwold_port_setup(overworld_port, Vector2(2700, 1050), "Woodland")
 	elif name == "Woodland":
-		var woodland_port := preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
+		var woodland_port: BoatPort = preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
 		overwold_port_setup(woodland_port, Vector2(520, 520), "Overworld")
 
 	# Components (warpers, stations, tables, flags, duel masters, NPC shops/quests)
@@ -136,10 +136,10 @@ func _ready() -> void:
 		RenderingServer.set_default_clear_color(map_background_color)
 
 
-func overwold_port_setup(port: Node2D, pos: Vector2, label: String) -> void:
+func overwold_port_setup(port: BoatPort, pos: Vector2, label: String) -> void:
 	port.name = "BoatPort"
 	port.position = pos
-	port.destination_label = label if port.get("destination_label") != null else label
+	port.destination_label = label
 	add_child(port)
 
 

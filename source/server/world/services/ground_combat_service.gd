@@ -293,3 +293,36 @@ func end_for_enemy(enemy: HostileNpc) -> void:
 			peers_to_end.append(peer_id)
 	for peer_id: int in peers_to_end:
 		_end_battle(peer_id, "interrupted")
+
+
+func end_for_peer(peer_id: int) -> void:
+	var encounter_id := int(_player_encounter.get(peer_id, 0))
+	if encounter_id > 0 and _encounters.has(encounter_id):
+		_remove_player_from_encounter(_encounters[encounter_id], peer_id, "cancelled")
+
+
+func end_for_enemy(enemy: HostileNpc) -> void:
+	if enemy == null:
+		return
+	var enemy_id := enemy.get_instance_id()
+	var encounter_id := int(_enemy_encounter.get(enemy_id, 0))
+	if encounter_id <= 0 or not _encounters.has(encounter_id):
+		return
+	var battle: Dictionary = _encounters[encounter_id]
+	_enemy_encounter.erase(enemy_id)
+	battle["enemy_defending"].erase(enemy_id)
+	var remaining: Array = []
+	for current_enemy: HostileNpc in battle["enemies"]:
+		if current_enemy != enemy and is_instance_valid(current_enemy) and not current_enemy.is_dead:
+			remaining.append(current_enemy)
+	battle["enemies"] = remaining
+	_encounters[encounter_id] = battle
+	ServerLog.info("[GROUND_COMBAT] enemy_removed encounter=%d enemy=%s remaining=%d" % [
+		encounter_id, enemy.display_name, remaining.size()
+	])
+	if remaining.is_empty():
+		_end_encounter(battle, "victory")
+		return
+	_rebuild_turn_order(battle, false)
+	_push_state(battle, "enemy_removed")
+	_advance_turn(battle)

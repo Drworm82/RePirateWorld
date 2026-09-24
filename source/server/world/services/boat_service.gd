@@ -14,7 +14,7 @@ const SEA_LIMIT_X: float = 1000.0
 const SEA_LIMIT_Y: float = 520.0
 const PORT_RADIUS: float = 140.0
 const SEA_SPAWN: Vector2 = Vector2(0, 0)
-const OVERWORLD_PORT: Vector2 = Vector2(2700, 1050)
+const OVERWORLD_PORT: Vector2 = Vector2(2050, 1150)
 const WOODLAND_PORT: Vector2 = Vector2(520, 520)
 
 var world_server: WorldServer

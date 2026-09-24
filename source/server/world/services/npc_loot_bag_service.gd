@@ -160,15 +160,19 @@ func loot_all(peer_id: int, instance, bag_id: int) -> Dictionary:
 	ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_call peer=%d bag_id=%d" % [peer_id, bag_id])
 	var bag := _get_bag(instance, bag_id)
 	if bag.is_empty():
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=not_found" % [peer_id, bag_id])
 		_release_lock(bag_id)
 		return {"ok": false, "reason": "not_found"}
 	if not _owns_lock(bag_id, peer_id):
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=not_open" % [peer_id, bag_id])
 		return {"ok": false, "reason": "not_open"}
 
 	var player = instance.get_player(peer_id)
 	if player == null or player.player_resource == null:
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=player_not_found" % [peer_id, bag_id])
 		return {"ok": false, "reason": "player_not_found"}
 	if player.global_position.distance_to(bag.position) > PICKUP_DISTANCE:
+		ServerLog.info("[NPC_LOOT_BAG_DIAG] loot_all_result peer=%d bag_id=%d ok=false reason=too_far" % [peer_id, bag_id])
 		_release_lock(bag_id)
 		return {"ok": false, "reason": "too_far"}
 

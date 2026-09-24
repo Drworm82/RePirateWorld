@@ -655,3 +655,28 @@ func get_guild_log(guild_id: int, limit: int = 100) -> Array:
 	return db.query_result
 
 #endregion
+
+
+#region Boats
+func get_boat(owner_player_id: int) -> Dictionary:
+	db.query_with_bindings("SELECT * FROM boats WHERE owner_player_id=?;", [owner_player_id])
+	return {} if db.query_result.is_empty() else db.query_result[0]
+
+func create_boat(owner_player_id: int, instance_name: String, x: float, y: float) -> Dictionary:
+	db.query_with_bindings(
+		"INSERT OR IGNORE INTO boats(owner_player_id, tier, state, instance_name, x, y, heading, destination_instance) VALUES(?, 0, 'docked', ?, ?, ?, 0.0, '');",
+		[owner_player_id, instance_name, x, y]
+	)
+	return get_boat(owner_player_id)
+
+func save_boat(boat: Dictionary) -> void:
+	db.query_with_bindings(
+		"UPDATE boats SET tier=?, state=?, instance_name=?, x=?, y=?, heading=?, destination_instance=? WHERE boat_id=? AND owner_player_id=?;",
+		[
+			int(boat.get("tier", 0)), str(boat.get("state", "docked")),
+			str(boat.get("instance_name", "")), float(boat.get("x", 0.0)), float(boat.get("y", 0.0)),
+			float(boat.get("heading", 0.0)), str(boat.get("destination_instance", "")),
+			int(boat.get("boat_id", 0)), int(boat.get("owner_player_id", 0))
+		]
+	)
+#endregion

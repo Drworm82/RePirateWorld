@@ -488,6 +488,17 @@ func _find_targets() -> void:
 			enemy_state = EnemyState.CHASE
 			return
 
+func _try_join_player_ground_combat(player: Player) -> bool:
+	if player == null or player.is_dead or not _uses_ground_combat():
+		return false
+	if WorldServer.curr == null or WorldServer.curr.instance_manager == null:
+		return false
+	var ground_combat_service = WorldServer.curr.instance_manager.ground_combat_service
+	if ground_combat_service == null:
+		return false
+	return ground_combat_service.try_start(player, self)
+
+
 
 ## Fold any player currently overlapping our detection area back into
 ## possible_targets. Additions only — body_exited handles removals. Cheap (a

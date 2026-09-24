@@ -318,14 +318,24 @@ func spawn_player(player_id: int, spawn_position: Vector2 = Vector2.ZERO) -> voi
 	new_player.name = str(player_id)
 	
 	players_by_peer_id[player_id] = new_player
-	
-	if not new_player.is_inside_tree():
-		instance_map.add_child(new_player)
 
-	# The local player owns :position, so the server's spawn baseline alone is not
-	# enough when this node is reused across instance changes. The spawn RPC carries
-	# the authoritative destination; apply it after reparenting so the local player
-	# starts the new instance at the server-selected spawn instead of its old map position.
+	# LocalPlayer is intentionally reused between instances. The server removes it
+	# from the old map during a warp, but the client-side despawn keeps the same node
+	# alive. Always reparent the reused local player into the NEW instance map before
+	# applying the authoritative spawn position; otherwise its Node2D stays attached
+	# to the previous map and can appear outside the destination map.
+	if player_id == multiplayer.get_unique_id():
+		if new_player.get_parent() != instance_map:
+			var old_parent: Node = new_player.get_parent()
+			if old_parent != null:
+				old_parent.remove_child(new_player)
+			instance_map.add_child(new_player, true)
+	else:
+		if not new_player.is_inside_tree():
+			instance_map.add_child(new_player, true)
+
+	# LocalPlayer owns :position, so the server's spawn baseline alone is not enough.
+	# Apply the exact authoritative destination after reparenting.
 	if player_id == multiplayer.get_unique_id() and spawn_position != Vector2.ZERO:
 		new_player.global_position = spawn_position
 		# Click-to-inspect: the player scene carries a ClickableArea (ProfileClickArea).

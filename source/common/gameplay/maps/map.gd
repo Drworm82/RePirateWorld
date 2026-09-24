@@ -148,10 +148,12 @@ func setup_boat_port(port: BoatPort, pos: Vector2, label: String) -> void:
 
 
 func get_spawn_position(warper_id: int = 0) -> Vector2:
-	if warpers.has(warper_id):
-		return warpers[warper_id].global_position
+	# Explicit spawn points are authoritative. A Warper can also be a door/exit and
+	# must not silently override an authored spawn position.
 	if warper_id >= 0 and warper_id < spawn_points.size():
 		return spawn_points[warper_id]
+	if warpers.has(warper_id):
+		return warpers[warper_id].global_position
 	return Vector2.ZERO
 
 

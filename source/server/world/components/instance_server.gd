@@ -304,10 +304,14 @@ func get_motd() -> String:
 ## Spawn the new player on all other client in the current instance
 ## and spawn all other players on the new client.
 func _propagate_spawn(new_player_id: int) -> void:
+	var spawned_player: Player = players_by_peer_id.get(new_player_id, null)
+	var spawned_position: Vector2 = spawned_player.global_position if spawned_player != null else Vector2.ZERO
 	for peer_id: int in connected_peers:
-		spawn_player.rpc_id(peer_id, new_player_id)
+		spawn_player.rpc_id(peer_id, new_player_id, spawned_position)
 		if new_player_id != peer_id:
-			spawn_player.rpc_id(new_player_id, peer_id)
+			var existing_player: Player = players_by_peer_id.get(peer_id, null)
+			var existing_position: Vector2 = existing_player.global_position if existing_player != null else Vector2.ZERO
+			spawn_player.rpc_id(new_player_id, peer_id, existing_position)
 
 
 @rpc("authority", "call_remote", "reliable", 0)

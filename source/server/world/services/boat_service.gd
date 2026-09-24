@@ -21,12 +21,14 @@ var world_server: WorldServer
 var _boats: Dictionary[int, Dictionary] = {}
 var _commands: Dictionary[int, Dictionary] = {}
 var _tick_accum: float = 0.0
+var _persist_accum: float = 0.0
 
 func _init(server: WorldServer) -> void:
 	world_server = server
 
-func _process(delta: float) -> void:
+func tick(delta: float) -> void:
 	_tick_accum += delta
+	_persist_accum += delta
 	if _tick_accum < 0.05:
 		return
 	var step: float = _tick_accum
@@ -188,7 +190,9 @@ func _simulate_boat(owner_id: int, boat: Dictionary, delta: float) -> void:
 			boat["state"] = "arrived"
 			_commands.erase(owner_id)
 	boat["heading"] = heading
-	world_server.database.store.save_boat(boat)
+	if _persist_accum >= 0.5:
+		world_server.database.store.save_boat(boat)
+	_persist_accum = 0.0 if _persist_accum >= 0.5 else _persist_accum
 	var peer_id: int = world_server.player_id_to_peer_id.get(owner_id, 0)
 	if peer_id <= 0:
 		return

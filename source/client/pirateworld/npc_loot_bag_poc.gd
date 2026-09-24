@@ -96,6 +96,8 @@ func _refresh_instance() -> void:
 			_remove_bag_node(bag_id)
 
 func _remove_bag_node(bag_id: int) -> void:
+	if _opened_bag_id == bag_id:
+		_close_loot_window()
 	if not _bags.has(bag_id):
 		return
 	var node: Node2D = _bags[bag_id]
@@ -284,8 +286,9 @@ func _loot_slot(instance_name: String, bag_id: int, slot_uid: String) -> void:
 		return
 	var payload: Dictionary = result[0]
 	if not bool(payload.get("ok", false)):
-		if str(payload.get("reason", "")) == "inventory_full":
-			Toaster.toast("No tienes espacio en el inventario.")
+		match str(payload.get("reason", "")):
+			"inventory_full": Toaster.toast("No tienes espacio en el inventario.")
+			"not_open", "not_found", "slot_gone": _close_loot_window()
 		return
 	if bool(payload.get("emptied", false)):
 		_close_loot_window()
@@ -320,6 +323,8 @@ func _loot_all(instance_name: String, bag_id: int) -> void:
 			Toaster.toast("Se recuperó lo que cabía en el inventario.")
 	elif str(payload.get("reason", "")) == "inventory_full":
 		Toaster.toast("No tienes espacio en el inventario.")
+	elif str(payload.get("reason", "")) in ["not_open", "not_found"]:
+		_close_loot_window()
 
 
 func _close_loot_window() -> void:

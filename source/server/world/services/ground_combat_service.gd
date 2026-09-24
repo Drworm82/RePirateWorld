@@ -224,6 +224,15 @@ func _enemy_turn(battle: Dictionary, enemy_id: int) -> void:
 		battle["player_defending"][peer_id] = false
 	_encounters[int(battle["id"])] = battle
 	player.take_damage(damage, enemy)
+	ServerLog.info("[GROUND_COMBAT] enemy_attack encounter=%d enemy=%s enemy_id=%d target_peer=%d damage=%d target_hp=%d turn=%s" % [
+		int(battle["id"]),
+		enemy.display_name,
+		enemy_id,
+		peer_id,
+		int(round(damage)),
+		int(round(player.stats_component.get_stat(Stat.HEALTH))),
+		_current_token(battle)
+	])
 	_push_state(battle, "enemy_attack")
 	if not is_instance_valid(player) or player.is_dead:
 		_remove_player(battle, peer_id, "defeat")
@@ -244,6 +253,13 @@ func _choose_target(battle: Dictionary) -> int:
 		var player: Player = battle["players"][peer_id]
 		if is_instance_valid(player) and not player.is_dead:
 			battle["enemy_target_index"] = (index + 1) % peers.size()
+			ServerLog.info("[GROUND_COMBAT] target_selected encounter=%d target_peer=%d target_index=%d next_target_index=%d players=%d" % [
+				int(battle["id"]),
+				peer_id,
+				index,
+				int(battle["enemy_target_index"]),
+				peers.size()
+			])
 			return peer_id
 	return 0
 

@@ -453,9 +453,17 @@ func _cleanup_dead_players(battle: Dictionary) -> void:
 			})
 
 func _check_end(battle: Dictionary) -> bool:
+	var had_dead_player := false
+	var dead_peers: Array = []
+	for peer_id in battle["players"].keys():
+		var player: Player = battle["players"][peer_id]
+		if not is_instance_valid(player) or player.is_dead:
+			dead_peers.append(int(peer_id))
+			had_dead_player = true
+
 	_cleanup_dead_players(battle)
 	if battle["players"].is_empty():
-		_end_encounter(battle, "cancelled")
+		_end_encounter(battle, "defeat" if had_dead_player else "cancelled")
 		return true
 	if battle["enemies"].is_empty():
 		_end_encounter(battle, "victory")

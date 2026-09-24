@@ -148,8 +148,10 @@ func _on_bag_changed(payload: Dictionary) -> void:
 	var result: Array = await Client.request_data_await(
 		&"npc_loot_bag.open", {"bag_id": _opened_bag_id}, instance.name
 	)
-	if result.size() >= 2 and result[1] == OK and bool(result[0].get("ok", false)):
+	if result.size() >= 2 and result[1] == OK and bool(result[0].get("ok", false)) and _opened_bag_id > 0:
 		_open_loot_window(instance, result[0])
+	else:
+		_close_loot_window()
 
 
 func _try_pickup(instance: InstanceClient) -> void:

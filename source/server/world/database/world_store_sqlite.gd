@@ -664,18 +664,20 @@ func get_boat(owner_player_id: int) -> Dictionary:
 
 func create_boat(owner_player_id: int, instance_name: String, x: float, y: float) -> Dictionary:
 	db.query_with_bindings(
-		"INSERT OR IGNORE INTO boats(owner_player_id, tier, state, instance_name, x, y, heading, destination_instance) VALUES(?, 0, 'docked', ?, ?, ?, 0.0, '');",
+		"INSERT OR IGNORE INTO boats(owner_player_id, tier, state, instance_name, x, y, heading, destination_instance, target_x, target_y, departure_ms, eta_ms) VALUES(?, 0, 'docked', ?, ?, ?, 0.0, '', 0.0, 0.0, 0, 0);",
 		[owner_player_id, instance_name, x, y]
 	)
 	return get_boat(owner_player_id)
 
 func save_boat(boat: Dictionary) -> void:
 	db.query_with_bindings(
-		"UPDATE boats SET tier=?, state=?, instance_name=?, x=?, y=?, heading=?, destination_instance=? WHERE boat_id=? AND owner_player_id=?;",
+		"UPDATE boats SET tier=?, state=?, instance_name=?, x=?, y=?, heading=?, destination_instance=?, target_x=?, target_y=?, departure_ms=?, eta_ms=? WHERE boat_id=? AND owner_player_id=?;",
 		[
 			int(boat.get("tier", 0)), str(boat.get("state", "docked")),
 			str(boat.get("instance_name", "")), float(boat.get("x", 0.0)), float(boat.get("y", 0.0)),
 			float(boat.get("heading", 0.0)), str(boat.get("destination_instance", "")),
+			float(boat.get("target_x", 0.0)), float(boat.get("target_y", 0.0)),
+			int(boat.get("departure_ms", 0)), int(boat.get("eta_ms", 0)),
 			int(boat.get("boat_id", 0)), int(boat.get("owner_player_id", 0))
 		]
 	)

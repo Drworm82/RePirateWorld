@@ -199,6 +199,11 @@ func _request_origin_respawn(button: Button) -> void:
 		return
 
 	var payload: Dictionary = result[0]
+	_ground_combat_log("request_result action=%s ok=%s reason=%s" % [
+		action,
+		str(payload.get("ok", false)),
+		str(payload.get("reason", ""))
+	])
 	if not bool(payload.get("ok", false)):
 		button.disabled = false
 		match str(payload.get("reason", "")):
@@ -624,8 +629,13 @@ func _has_gui_focus() -> bool:
 
 # --- Phase 2: multiplayer turn-based ground combat --------------------------
 
+func _ground_combat_log(message: String) -> void:
+	print("[GROUND_COMBAT_CLIENT] peer=%d %s" % [multiplayer.get_unique_id(), message])
+
+
 func _on_ground_combat_lock(payload: Dictionary) -> void:
 	_ground_combat_locked = bool(payload.get("locked", false))
+	_ground_combat_log("lock locked=%s" % str(_ground_combat_locked))
 	input_direction = Vector2.ZERO
 	action_input = false
 	if _ground_combat_locked:
@@ -639,6 +649,14 @@ func _on_ground_combat_lock(payload: Dictionary) -> void:
 
 func _on_ground_combat_state(payload: Dictionary) -> void:
 	_ground_combat_state = payload.duplicate(true)
+	_ground_combat_log("state encounter=%d reason=%s turn=%s your_turn=%s players=%d enemies=%d" % [
+		int(payload.get("encounter_id", 0)),
+		str(payload.get("reason", "")),
+		str(payload.get("turn", "")),
+		str(payload.get("your_turn", false)),
+		(payload.get("players", []) as Array).size(),
+		(payload.get("enemies", []) as Array).size()
+	])
 	var enemies: Array = _ground_combat_state.get("enemies", [])
 	if not enemies.is_empty():
 		var selected_exists := false
@@ -656,6 +674,10 @@ func _on_ground_combat_state(payload: Dictionary) -> void:
 
 
 func _on_ground_combat_end(payload: Dictionary) -> void:
+	_ground_combat_log("end encounter=%d result=%s" % [
+		int(payload.get("encounter_id", 0)),
+		str(payload.get("result", "cancelled"))
+	])
 	_ground_combat_locked = false
 	_ground_combat_selected_enemy_id = ""
 	if controller != null:
@@ -676,6 +698,7 @@ func _on_ground_combat_end(payload: Dictionary) -> void:
 
 
 func _show_ground_combat_window() -> void:
+	_ground_combat_log("ui_open")
 	var window := Window.new()
 	_ground_combat_window = window
 	window.name = "GroundCombatWindow"
@@ -805,10 +828,16 @@ func _update_ground_combat_window() -> void:
 
 func _ground_combat_select_enemy(enemy_id: String) -> void:
 	_ground_combat_selected_enemy_id = enemy_id
+	_ground_combat_log("target_selected enemy_id=%s" % enemy_id)
 	_update_ground_combat_window()
 
 
 func _ground_combat_action(action: String) -> void:
+	_ground_combat_log("action_click action=%s target_enemy_id=%s your_turn=%s" % [
+		action,
+		_ground_combat_selected_enemy_id,
+		str(_ground_combat_state.get("your_turn", false))
+	])
 	if action != "flee" and not bool(_ground_combat_state.get("your_turn", false)):
 		return
 	var instance := InstanceClient.current
@@ -821,8 +850,10 @@ func _ground_combat_action(action: String) -> void:
 			"action": action,
 			"target_enemy_id": _ground_combat_selected_enemy_id,
 		}
+	_ground_combat_log("request action=%s request=%s args=%s" % [action, str(request_name), str(args)])
 	var result: Array = await Client.request_data_await(request_name, args, instance.name)
 	if result.size() < 2 or result[1] != OK:
+		_ground_combat_log("request_failed action=%s transport_status=%s" % [action, str(result[1] if result.size() >= 2 else "missing")])
 		Toaster.toast("No se pudo ejecutar la acción.")
 		return
 	var payload: Dictionary = result[0]

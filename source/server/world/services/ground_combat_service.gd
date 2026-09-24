@@ -347,7 +347,7 @@ func _current_token(battle: Dictionary) -> String:
 
 func _token_alive(battle: Dictionary, token: String) -> bool:
 	if token.begins_with("p:"):
-		var player := battle["players"].get(int(token.trim_prefix("p:")), null)
+		var player: Player = battle["players"].get(int(token.trim_prefix("p:")), null) as Player
 		return is_instance_valid(player) and not player.is_dead
 	var enemy_id := int(token.trim_prefix("e:"))
 	var enemy := instance_from_id(enemy_id) as HostileNpc

@@ -185,7 +185,7 @@ func _simulate_boat(owner_id: int, boat: Dictionary, delta: float) -> void:
 		p.y = clampf(p.y, -SEA_LIMIT_Y, SEA_LIMIT_Y)
 		boat["x"] = p.x
 		boat["y"] = p.y
-	boat["heading"] = heading
+		boat["heading"] = heading
 		if _has_reached_destination(boat, p):
 			boat["state"] = "arrived"
 			_commands.erase(owner_id)

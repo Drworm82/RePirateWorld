@@ -43,6 +43,7 @@
 [ext_resource type="PackedScene" uid="uid://v32667qwpj2l" path="res://source/common/gameplay/characters/npc/hostile_npc.tscn" id="35_o1ke5"]
 [ext_resource type="Resource" uid="uid://bdexx5ivs3jhf" path="res://source/common/gameplay/characters/npc/types/training_dummy.tres" id="36_2opns"]
 [ext_resource type="Resource" path="res://source/common/gameplay/maps/instance/instance_collection/biomes/bandit_hideout.tres" id="46_l3yo4"]
+[ext_resource type="Resource" path="res://source/common/gameplay/maps/instance/instance_collection/sea_navigation.tres" id="47_sea"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_aris3"]
 size = Vector2(40, 32)
@@ -620,10 +621,11 @@ target_id = 22
 
 [node name="TheHollowPortal" parent="Warpers" unique_id=2072488891 instance=ExtResource("29_2sqao")]
 position = Vector2(992, 80)
-portal_color = Color(0.11549731, 0.1297065, 0.12632617, 1)
-destination_label = "The Hollow (Lv 35+)"
+portal_color = Color(0.08, 0.65, 0.95, 1)
+destination_label = "BOAT / SEA"
+target_instance = ExtResource("47_sea")
 warper_id = 27
-target_id = 27
+target_id = 0
 
 [node name="WoodlandPortal" parent="Warpers" unique_id=686472752 instance=ExtResource("29_2sqao")]
 position = Vector2(856, -112)

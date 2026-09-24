@@ -47,6 +47,11 @@ var fid_pivot: int
 var _net_send_accum: float = 0.0
 
 var synchronizer_manager: StateSynchronizerManagerClient
+var _boat_state: Dictionary = {}
+var _boat_e_was_down: bool = false
+var _boat_last_command: String = ""
+var _boat_last_send_ms: int = 0
+var _boat_visuals: Dictionary[int, Node2D] = {}
 
 @onready var camera_2d: Camera2D = $Camera2D
 @onready var controller: InputComponent = $InputComponent
@@ -87,6 +92,7 @@ func _ready() -> void:
 	Client.subscribe(&"ground_combat.lock", _on_ground_combat_lock)
 	Client.subscribe(&"ground_combat.state", _on_ground_combat_state)
 	Client.subscribe(&"ground_combat.end", _on_ground_combat_end)
+	Client.subscribe(&"boat.state", _on_boat_state)
 	# STUNNED (Pinning Arrow): the server locks our input for the duration — movement
 	# is client-authoritative, so the freeze must happen here. The movement lock also
 	# swallows attacks, and the server refuses our actions regardless.
@@ -420,6 +426,10 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _boat_is_active():
+		process_boat_input()
+		process_animation(delta)
+		return
 	if _ground_combat_locked:
 		input_direction = Vector2.ZERO
 		action_input = false
@@ -864,3 +874,61 @@ func _ground_combat_action(action: String) -> void:
 			"not_your_turn": Toaster.toast("No es tu turno.")
 			"invalid_target": Toaster.toast("Selecciona un enemigo válido.")
 			_: Toaster.toast("Acción no válida.")
+
+
+func _boat_is_active() -> bool:
+	var state := str(_boat_state.get("state", "docked"))
+	return state == "boarded" or state == "sailing" or state == "arrived"
+
+func _on_boat_state(payload: Dictionary) -> void:
+	var boat_v: Variant = payload.get("boat", {})
+	if not boat_v is Dictionary:
+		return
+	var boat: Dictionary = boat_v
+	var boat_id: int = int(boat.get("boat_id", 0))
+	if boat_id <= 0:
+		return
+	var visual: BoatVisual = _boat_visuals.get(boat_id, null) as BoatVisual
+	if visual == null or not is_instance_valid(visual):
+		visual = preload("res://source/common/gameplay/boats/boat_visual.gd").new()
+		visual.owner_player_id = int(boat.get("owner_player_id", 0))
+		var map := get_parent()
+		if map != null:
+			map.add_child(visual)
+			_boat_visuals[boat_id] = visual
+	visual.set_state(boat)
+	var owner_id: int = int(boat.get("owner_player_id", 0))
+	if player_resource != null and owner_id == player_resource.player_id:
+		_boat_state = boat.duplicate(true)
+		var pos_v: Variant = payload.get("player_position", null)
+		if pos_v is Vector2:
+			global_position = pos_v
+		if _boat_is_active():
+			velocity = Vector2.ZERO
+		elif str(boat.get("state", "")) == "docked":
+			_movement_lock_until_ms = mini(_movement_lock_until_ms, Time.get_ticks_msec())
+
+func process_boat_input() -> void:
+	velocity = Vector2.ZERO
+	var e_down := Input.is_physical_key_pressed(KEY_E)
+	if e_down and not _boat_e_was_down:
+		if str(_boat_state.get("state", "")) == "arrived":
+			Client.request_data(&"boat.disembark", Callable(), {}, InstanceClient.current.name if InstanceClient.current != null else "")
+		elif str(_boat_state.get("state", "")) == "docked":
+			Client.request_data(&"boat.board", Callable(), {}, InstanceClient.current.name if InstanceClient.current != null else "")
+	_boat_e_was_down = e_down
+	if InstanceClient.current == null:
+		return
+	var command := "stop"
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		command = "forward"
+	elif Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		command = "reverse"
+	elif Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT):
+		command = "left"
+	elif Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
+		command = "right"
+	if command != _boat_last_command or Time.get_ticks_msec() - _boat_last_send_ms >= 100:
+		_boat_last_command = command
+		_boat_last_send_ms = Time.get_ticks_msec()
+		Client.request_data(&"boat.move", Callable(), {"command": command}, InstanceClient.current.name)

@@ -224,6 +224,22 @@ func on_player_spawned(peer_id: int, player: Player, instance: ServerInstance) -
 		world_server.database.store.save_boat(boat)
 		_boats[player.player_resource.player_id] = boat
 
+	# Migrate boats created by the previous manual-navigation prototype.
+	# A legacy sea "sailing"/"boarded" state without an Autonav timestamp is now ready.
+	if current_instance_name == SEA_INSTANCE_NAME and (
+			str(boat.get("state", "")) == "sailing" or str(boat.get("state", "")) == "boarded"):
+		if int(boat.get("eta_ms", 0)) <= 0:
+			boat["state"] = "ready"
+			boat["destination_instance"] = ""
+			boat["departure_ms"] = 0
+			boat["eta_ms"] = 0
+			boat["target_x"] = 0.0
+			boat["target_y"] = 0.0
+			boat["route_start_x"] = 0.0
+			boat["route_start_y"] = 0.0
+			world_server.database.store.save_boat(boat)
+			_boats[player.player_resource.player_id] = boat
+
 	if str(boat.get("instance_name", "")) != current_instance_name:
 		return
 

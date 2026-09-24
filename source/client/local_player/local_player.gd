@@ -221,6 +221,7 @@ var _movement_lock_until_ms: int = 0
 var _ground_combat_locked: bool = false
 var _ground_combat_window: Window
 var _ground_combat_state: Dictionary = {}
+var _ground_combat_selected_enemy_id: String = ""
 
 func _on_sparring_match_state(payload: Dictionary) -> void:
 	var pos: Variant = payload.get("position", null)
@@ -621,7 +622,7 @@ func _has_gui_focus() -> bool:
 	return focus is LineEdit or focus is TextEdit
 
 
-# --- Phase 2: turn-based ground combat -------------------------------------
+# --- Phase 2: multiplayer turn-based ground combat --------------------------
 
 func _on_ground_combat_lock(payload: Dictionary) -> void:
 	_ground_combat_locked = bool(payload.get("locked", false))
@@ -638,6 +639,17 @@ func _on_ground_combat_lock(payload: Dictionary) -> void:
 
 func _on_ground_combat_state(payload: Dictionary) -> void:
 	_ground_combat_state = payload.duplicate(true)
+	var enemies: Array = _ground_combat_state.get("enemies", [])
+	if not enemies.is_empty():
+		var selected_exists := false
+		for enemy: Dictionary in enemies:
+			if str(enemy.get("id", "")) == _ground_combat_selected_enemy_id:
+				selected_exists = true
+				break
+		if not selected_exists:
+			_ground_combat_selected_enemy_id = str(enemies[0].get("id", ""))
+	else:
+		_ground_combat_selected_enemy_id = ""
 	if _ground_combat_window == null or not is_instance_valid(_ground_combat_window):
 		_show_ground_combat_window()
 	_update_ground_combat_window()
@@ -645,6 +657,7 @@ func _on_ground_combat_state(payload: Dictionary) -> void:
 
 func _on_ground_combat_end(payload: Dictionary) -> void:
 	_ground_combat_locked = false
+	_ground_combat_selected_enemy_id = ""
 	if controller != null:
 		controller.enabled = true
 	if _ground_combat_window != null and is_instance_valid(_ground_combat_window):
@@ -653,9 +666,9 @@ func _on_ground_combat_end(payload: Dictionary) -> void:
 	var result := str(payload.get("result", "cancelled"))
 	match result:
 		"victory":
-			Toaster.toast("Victoria. El bandido ha sido derrotado.")
+			Toaster.toast("Victoria. El encuentro terminó.")
 		"defeat":
-			Toaster.toast("Has perdido el combate.")
+			Toaster.toast("Has sido derrotado.")
 		"fled":
 			Toaster.toast("Has huido del combate.")
 		_:
@@ -666,19 +679,20 @@ func _show_ground_combat_window() -> void:
 	var window := Window.new()
 	_ground_combat_window = window
 	window.name = "GroundCombatWindow"
-	window.title = "Combate"
-	window.size = Vector2i(440, 430)
+	window.title = "Encuentro de combate"
+	window.size = Vector2i(520, 620)
 	window.close_requested.connect(func(): pass)
 
 	var root := VBoxContainer.new()
+	root.name = "Root"
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 10)
+	root.add_theme_constant_override("separation", 8)
 	window.add_child(root)
 
 	var title := Label.new()
 	title.name = "Title"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 22)
 	root.add_child(title)
 
 	var status := Label.new()
@@ -686,20 +700,27 @@ func _show_ground_combat_window() -> void:
 	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(status)
 
-	var enemy_hp := ProgressBar.new()
-	enemy_hp.name = "EnemyHP"
-	enemy_hp.custom_minimum_size = Vector2(0, 28)
-	root.add_child(enemy_hp)
+	var players_title := Label.new()
+	players_title.text = "Jugadores"
+	root.add_child(players_title)
 
-	var player_hp := ProgressBar.new()
-	player_hp.name = "PlayerHP"
-	player_hp.custom_minimum_size = Vector2(0, 28)
-	root.add_child(player_hp)
+	var players := VBoxContainer.new()
+	players.name = "Players"
+	root.add_child(players)
+
+	var enemies_title := Label.new()
+	enemies_title.text = "Enemigos — selecciona el objetivo"
+	root.add_child(enemies_title)
+
+	var enemies := VBoxContainer.new()
+	enemies.name = "Enemies"
+	enemies.custom_minimum_size = Vector2(0, 120)
+	root.add_child(enemies)
 
 	var actions := GridContainer.new()
 	actions.name = "Actions"
 	actions.columns = 2
-	actions.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	actions.custom_minimum_size = Vector2(0, 190)
 	root.add_child(actions)
 
 	for entry in [
@@ -711,14 +732,14 @@ func _show_ground_combat_window() -> void:
 		var button := Button.new()
 		button.name = entry["name"]
 		button.text = entry["text"]
-		button.custom_minimum_size = Vector2(0, 58)
+		button.custom_minimum_size = Vector2(0, 52)
 		button.pressed.connect(_ground_combat_action.bind(str(entry["action"])))
 		actions.add_child(button)
 
 	var flee := Button.new()
 	flee.name = "Flee"
 	flee.text = "HUIR"
-	flee.custom_minimum_size = Vector2(0, 44)
+	flee.custom_minimum_size = Vector2(0, 42)
 	flee.pressed.connect(_ground_combat_action.bind("flee"))
 	root.add_child(flee)
 
@@ -729,44 +750,77 @@ func _show_ground_combat_window() -> void:
 func _update_ground_combat_window() -> void:
 	if _ground_combat_window == null or not is_instance_valid(_ground_combat_window):
 		return
-	var title := _ground_combat_window.get_node_or_null("Root/Title") as Label
-	var status := _ground_combat_window.get_node_or_null("Root/Status") as Label
-	var enemy_hp := _ground_combat_window.get_node_or_null("Root/EnemyHP") as ProgressBar
-	var player_hp := _ground_combat_window.get_node_or_null("Root/PlayerHP") as ProgressBar
-	if title == null:
+	var root := _ground_combat_window.get_node_or_null("Root") as VBoxContainer
+	if root == null:
+		return
+	var title := root.get_node_or_null("Title") as Label
+	var status := root.get_node_or_null("Status") as Label
+	var players_box := root.get_node_or_null("Players") as VBoxContainer
+	var enemies_box := root.get_node_or_null("Enemies") as VBoxContainer
+	var actions := root.get_node_or_null("Actions") as GridContainer
+	if title == null or status == null:
 		return
 
-	var enemy_name := str(_ground_combat_state.get("enemy_name", "Bandido"))
-	var enemy_current := float(_ground_combat_state.get("enemy_hp", 0))
-	var enemy_max := maxf(1.0, float(_ground_combat_state.get("enemy_max_hp", 1)))
-	var player_current := float(_ground_combat_state.get("player_hp", 0))
-	var player_max := maxf(1.0, float(_ground_combat_state.get("player_max_hp", 1)))
-	var turn := str(_ground_combat_state.get("turn", "player"))
+	var encounter_id := int(_ground_combat_state.get("encounter_id", 0))
+	var turn := str(_ground_combat_state.get("turn", ""))
+	var your_turn := bool(_ground_combat_state.get("your_turn", false))
+	title.text = "Encuentro #%d" % encounter_id
+	status.text = "Tu turno" if your_turn else "Turno: %s" % turn
 
-	title.text = "Bandido: %s" % enemy_name
-	status.text = "Tu turno" if turn == "player" else "Turno del enemigo..."
-	enemy_hp.max_value = enemy_max
-	enemy_hp.value = enemy_current
-	enemy_hp.tooltip_text = "Bandido: %d / %d HP" % [int(enemy_current), int(enemy_max)]
-	player_hp.max_value = player_max
-	player_hp.value = player_current
-	player_hp.tooltip_text = "Jugador: %d / %d HP" % [int(player_current), int(player_max)]
+	if players_box != null:
+		for child in players_box.get_children():
+			child.queue_free()
+		for player_data: Dictionary in _ground_combat_state.get("players", []):
+			var row := Label.new()
+			var name_text := "Tú" if bool(player_data.get("self", false)) else "Jugador %d" % int(player_data.get("peer_id", 0))
+			row.text = "%s — %d / %d HP" % [
+				name_text,
+				int(player_data.get("hp", 0)),
+				int(player_data.get("max_hp", 1))
+			]
+			players_box.add_child(row)
 
-	var actions := _ground_combat_window.get_node_or_null("Root/Actions") as GridContainer
+	if enemies_box != null:
+		for child in enemies_box.get_children():
+			child.queue_free()
+		for enemy: Dictionary in _ground_combat_state.get("enemies", []):
+			var enemy_id := str(enemy.get("id", ""))
+			var button := Button.new()
+			button.text = "%s — %d / %d HP%s" % [
+				str(enemy.get("name", "Enemigo")),
+				int(enemy.get("hp", 0)),
+				int(enemy.get("max_hp", 1)),
+				" — DEFENDIENDO" if bool(enemy.get("defending", false)) else ""
+			]
+			button.disabled = int(enemy.get("hp", 0)) <= 0
+			button.button_pressed = enemy_id == _ground_combat_selected_enemy_id
+			button.pressed.connect(_ground_combat_select_enemy.bind(enemy_id))
+			enemies_box.add_child(button)
+
 	if actions != null:
 		for child in actions.get_children():
 			if child is Button:
-				(child as Button).disabled = turn != "player"
+				(child as Button).disabled = not your_turn
+
+
+func _ground_combat_select_enemy(enemy_id: String) -> void:
+	_ground_combat_selected_enemy_id = enemy_id
+	_update_ground_combat_window()
 
 
 func _ground_combat_action(action: String) -> void:
-	if action != "flee" and str(_ground_combat_state.get("turn", "enemy")) != "player":
+	if action != "flee" and not bool(_ground_combat_state.get("your_turn", false)):
 		return
 	var instance := InstanceClient.current
 	if instance == null:
 		return
 	var request_name: StringName = &"ground_combat.flee" if action == "flee" else &"ground_combat.action"
-	var args := {} if action == "flee" else {"action": action}
+	var args: Dictionary = {}
+	if action != "flee":
+		args = {
+			"action": action,
+			"target_enemy_id": _ground_combat_selected_enemy_id,
+		}
 	var result: Array = await Client.request_data_await(request_name, args, instance.name)
 	if result.size() < 2 or result[1] != OK:
 		Toaster.toast("No se pudo ejecutar la acción.")
@@ -777,4 +831,5 @@ func _ground_combat_action(action: String) -> void:
 			"item_missing": Toaster.toast("No tienes una poción de curación.")
 			"health_full": Toaster.toast("Tu vida ya está al máximo.")
 			"not_your_turn": Toaster.toast("No es tu turno.")
+			"invalid_target": Toaster.toast("Selecciona un enemigo válido.")
 			_: Toaster.toast("Acción no válida.")

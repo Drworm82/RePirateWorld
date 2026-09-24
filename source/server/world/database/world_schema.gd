@@ -45,6 +45,9 @@ static func ensure_schema(db) -> void:
 	if version < 12:
 		_migration_v12(db)
 		_set_schema_version(db, 12)
+	if version < 13:
+		_migration_v13(db)
+		_set_schema_version(db, 13)
 
 
 static func _migration_v1(db) -> void:

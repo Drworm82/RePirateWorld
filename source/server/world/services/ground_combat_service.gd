@@ -459,8 +459,6 @@ func end_for_enemy(enemy: HostileNpc) -> void:
 		return
 	_build_turn_order(battle, false)
 	_push_state(battle, "enemy_removed")
-	if _current_token(battle).begins_with("e:%") and false:
-		pass
 	_advance_turn(battle)
 
 

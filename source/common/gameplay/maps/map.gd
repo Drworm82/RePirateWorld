@@ -125,7 +125,7 @@ func _ready() -> void:
 	# coordinates through BoatService; the node is also present on clients for visual feedback.
 	if name == "Overworld":
 		var overworld_port: BoatPort = preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
-		overwold_port_setup(overworld_port, Vector2(2700, 1050), "Woodland")
+		setup_boat_port(overworld_port, Vector2(2700, 1050), "Woodland")
 	elif name == "Woodland":
 		var woodland_port: BoatPort = preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
 		overwold_port_setup(woodland_port, Vector2(520, 520), "Overworld")

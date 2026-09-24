@@ -65,6 +65,9 @@ enum ZoneModifiers {
 @export var camera_limit_bottom: int = 10000000
 
 var warpers: Dictionary[int, Warper]
+## Explicit spawn points for maps that do not use a Warper as their spawn marker.
+## Index 0 is the default spawn; authored warpers keep priority when present.
+@export var spawn_points: Array[Vector2] = []
 ## merchant NPC giver_key (its NPCResource filename slug) -> ShopResource, gathered
 ## from the NPCs placed in this map. The server uses this to resolve/verify a shop the
 ## player is actually at, rather than trusting a client-sent key — and it lets an inline
@@ -147,6 +150,8 @@ func setup_boat_port(port: BoatPort, pos: Vector2, label: String) -> void:
 func get_spawn_position(warper_id: int = 0) -> Vector2:
 	if warpers.has(warper_id):
 		return warpers[warper_id].global_position
+	if warper_id >= 0 and warper_id < spawn_points.size():
+		return spawn_points[warper_id]
 	return Vector2.ZERO
 
 

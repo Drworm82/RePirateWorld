@@ -257,6 +257,23 @@ static func _migration_v12(db) -> void:
 	db.query("CREATE INDEX IF NOT EXISTS idx_rewarded_ad_receipts_player_time ON rewarded_ad_receipts(player_id, created_at_ms DESC);")
 
 
+## v13: persistent Tier 0 boats. One owned boat per player; position/state survive restarts.
+static func _migration_v13(db) -> void:
+	_create_table_if_missing(db, "boats", {
+		"boat_id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
+		"owner_player_id": {"data_type": "int", "not_null": true},
+		"tier": {"data_type": "int", "not_null": true},
+		"state": {"data_type": "text", "not_null": true},
+		"instance_name": {"data_type": "text", "not_null": true},
+		"x": {"data_type": "real", "not_null": true},
+		"y": {"data_type": "real", "not_null": true},
+		"heading": {"data_type": "real", "not_null": true},
+		"destination_instance": {"data_type": "text", "not_null": true}
+	})
+	db.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_boats_owner ON boats(owner_player_id);")
+	db.query("CREATE INDEX IF NOT EXISTS idx_boats_instance ON boats(instance_name);")
+
+
 static func _migration_v11(db) -> void:
 	if not _column_exists(db, "death_bags", "state"):
 		db.query("ALTER TABLE death_bags ADD COLUMN state TEXT NOT NULL DEFAULT 'floating';")

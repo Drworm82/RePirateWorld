@@ -120,10 +120,27 @@ func _ready() -> void:
 	set_process(Engine.is_editor_hint())
 	if Engine.is_editor_hint():
 		return
+	# Phase 3 ports are authored from the map identity for the MVP so existing large
+	# map scenes do not need destructive .tscn rewrites. The server validates the same
+	# coordinates through BoatService; the node is also present on clients for visual feedback.
+	if name == "Overworld":
+		var overworld_port := preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
+		overwold_port_setup(overworld_port, Vector2(2700, 1050), "Woodland")
+	elif name == "Woodland":
+		var woodland_port := preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
+		overwold_port_setup(woodland_port, Vector2(520, 520), "Overworld")
+
 	# Components (warpers, stations, tables, flags, duel masters, NPC shops/quests)
 	# self-register via Map.of() + register_keyed() from their own _ready.
 	if not multiplayer.is_server():
 		RenderingServer.set_default_clear_color(map_background_color)
+
+
+func overwold_port_setup(port: Node2D, pos: Vector2, label: String) -> void:
+	port.name = "BoatPort"
+	port.position = pos
+	port.destination_label = label if port.get("destination_label") != null else label
+	add_child(port)
 
 
 func get_spawn_position(warper_id: int = 0) -> Vector2:

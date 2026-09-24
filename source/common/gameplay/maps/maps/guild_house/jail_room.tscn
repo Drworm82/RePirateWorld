@@ -34,6 +34,7 @@ metadata/_custom_type_script = "uid://ddps5vwhnf048"
 [node name="JailRoom" type="Node2D" unique_id=288046526]
 y_sort_enabled = true
 script = ExtResource("1_cvgnw")
+spawn_points = Array[Vector2]([Vector2(40, 160)])
 metadata/_custom_type_script = "uid://7mbux4mybta0"
 
 [node name="Floor" type="TileMapLayer" parent="." unique_id=1165481526]
@@ -51,10 +52,6 @@ tile_set = ExtResource("2_ln6fr")
 y_sort_enabled = true
 tile_map_data = PackedByteArray("AAABAAEAAQAGAAQAAAADAAEAAQAGAAQAAAABAAAAAQAGAAIAAAADAAAAAQAGAAIAAAAHAAAAAQAGAAIAAAAHAAEAAQAGAAQAAAAJAAAAAQAGAAIAAAAJAAEAAQAGAAQAAAANAAAAAQAGAAIAAAANAAEAAQAGAAQAAAAPAAAAAQAGAAIAAAAPAAEAAQAGAAQAAAAUAAEAAQAHAAIAAAAUAAIAAQAIAAwAAAABAAsAAQAEAAAAAAABAAoAAQAMAAEAAAADAAsAAQANAAEAAAAFAAYAAQAFAA0AAAALAAYAAQAFAA0AAAARAAYAAQAFAA0AAAA=")
 tile_set = ExtResource("2_ln6fr")
-
-[node name="JailSpawn" parent="." unique_id=0 instance=ExtResource("3_sxpnr")]
-position = Vector2(40, 160)
-warper_id = 0
 
 [node name="Spawn" parent="." unique_id=1661700341 instance=ExtResource("3_sxpnr")]
 position = Vector2(320, 184)

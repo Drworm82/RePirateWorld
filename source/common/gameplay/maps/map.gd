@@ -126,6 +126,7 @@ func _ready() -> void:
 	if name == "Overworld":
 		var overworld_port: BoatPort = preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
 		setup_boat_port(overworld_port, Vector2(2050, 1150), "Woodland")
+		setup_boat_warp(Vector2(0, 180))
 	elif name == "Woodland":
 		var woodland_port: BoatPort = preload("res://source/common/gameplay/maps/components/boat_port.gd").new()
 		setup_boat_port(woodland_port, Vector2(520, 520), "Overworld")
@@ -142,6 +143,22 @@ func setup_boat_port(port: BoatPort, pos: Vector2, label: String) -> void:
 	port.destination_label = label
 	port.z_index = 50
 	add_child(port)
+
+
+func setup_boat_warp(pos: Vector2) -> void:
+	# The jail instance reuses the Overworld map and its default spawn is the
+	# existing warper slot 0. Put a real Portal nearby so the player has a
+	# deterministic way from the jail/garden area directly onto the sea boat.
+	var boat_warp: Portal = preload("res://source/common/gameplay/maps/components/interaction_areas/warper/portal/portal.tscn").instantiate() as Portal
+	boat_warp.name = "BoatWarp"
+	boat_warp.position = pos
+	boat_warp.warper_id = 0
+	boat_warp.target_id = 0
+	boat_warp.target_instance = preload("res://source/common/gameplay/maps/instance/instance_collection/sea_navigation.tres")
+	boat_warp.destination_label = "BOAT / SEA"
+	boat_warp.portal_color = Color(0.08, 0.65, 0.95, 1.0)
+	boat_warp.z_index = 60
+	add_child(boat_warp)
 
 
 func get_spawn_position(warper_id: int = 0) -> Vector2:

@@ -94,7 +94,7 @@ func start_autonav(peer_id: int, destination: String, target_x: float = 0.0, tar
 	if state != "ready" and state != "paused_at_sea":
 		return {"ok": false, "reason": "boat_not_ready"}
 
-	var target := _resolve_destination(destination, target_x, target_y)
+	var target: Vector2 = _resolve_destination(destination, target_x, target_y)
 	if target == null:
 		return {"ok": false, "reason": "invalid_destination"}
 

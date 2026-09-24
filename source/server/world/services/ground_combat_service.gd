@@ -408,6 +408,11 @@ func _remove_player(battle: Dictionary, peer_id: int, result: String) -> void:
 	battle["player_defending"].erase(peer_id)
 	_player_encounter.erase(peer_id)
 	_push_lock(peer_id, false)
+	if WorldServer.curr != null:
+		WorldServer.curr.data_push.rpc_id(peer_id, &"ground_combat.end", {
+			"result": result,
+			"enemy_name": "Encuentro"
+		})
 	if is_instance_valid(player):
 		for enemy: HostileNpc in battle["enemies"]:
 			if is_instance_valid(enemy) and enemy.targeted_player == player:

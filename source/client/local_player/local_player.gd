@@ -857,6 +857,11 @@ func _ground_combat_action(action: String) -> void:
 		Toaster.toast("No se pudo ejecutar la acción.")
 		return
 	var payload: Dictionary = result[0]
+	_ground_combat_log("request_result action=%s ok=%s reason=%s" % [
+		action,
+		str(payload.get("ok", false)),
+		str(payload.get("reason", ""))
+	])
 	if not bool(payload.get("ok", false)):
 		match str(payload.get("reason", "")):
 			"item_missing": Toaster.toast("No tienes una poción de curación.")

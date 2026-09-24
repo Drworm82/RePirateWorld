@@ -120,15 +120,17 @@ func perform_action(peer_id: int, action: String, target_enemy_id: String = "") 
 		_remove_player(battle, peer_id, "fled")
 		return {"ok": true, "ended": not _encounters.has(eid), "result": "fled"}
 
-	var enemy := _find_enemy(battle, target_enemy_id)
-	if enemy == null:
-		return {"ok": false, "reason": "invalid_target"}
-
 	var result: Dictionary
 	match action:
 		"attack":
+			var enemy := _find_enemy(battle, target_enemy_id)
+			if enemy == null:
+				return {"ok": false, "reason": "invalid_target"}
 			result = _attack(battle, player, enemy, false)
 		"ability":
+			var enemy := _find_enemy(battle, target_enemy_id)
+			if enemy == null:
+				return {"ok": false, "reason": "invalid_target"}
 			result = _attack(battle, player, enemy, true)
 		"item":
 			result = _item(battle, player)

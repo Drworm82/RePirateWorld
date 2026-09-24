@@ -122,7 +122,7 @@ func _on_peer_connected(peer_id: int) -> void:
 				jail_inst = jail_res.get_instance(0)
 			if jail_inst != null:
 				charge_new_instance.rpc_id(peer_id, jail_res.map_path, jail_inst.name)
-				jail_inst.awaiting_peers[peer_id] = {"target_position": Vector2(400, 184)}
+				jail_inst.awaiting_peers[peer_id] = {"target_id": 0}
 				return
 
 	# First-ever login? current_instance can't tell us — it's in-memory only (set on spawn,
@@ -145,7 +145,7 @@ func _on_peer_connected(peer_id: int) -> void:
 			target_inst = target_res.get_instance(0)
 		if target_inst != null:
 			charge_new_instance.rpc_id(peer_id, target_res.map_path, target_inst.name)
-			target_inst.awaiting_peers[peer_id] = {"target_position": Vector2(400, 184)} # Spawn inside the cell; the authored warper at (320, 184) remains the exit.
+			target_inst.awaiting_peers[peer_id] = {"target_id": 0} # Jail map owns the explicit interior spawn marker.
 			return
 
 	# Fallback: the tavern/jail map is missing or mid-load — land in the default overworld so

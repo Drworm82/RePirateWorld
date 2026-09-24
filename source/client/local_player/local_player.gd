@@ -1072,7 +1072,7 @@ func _update_boat_navigation_window() -> void:
 	if resume != null:
 		resume.visible = state == "paused_at_sea"
 	if disembark != null:
-		disembark.visible = state == "arrived"
+		disembark.visible = state == "arrived" and destination != "coordinates"
 
 func _boat_destination_label(destination: String) -> String:
 	match destination:

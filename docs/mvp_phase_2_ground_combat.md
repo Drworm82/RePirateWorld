@@ -31,7 +31,7 @@ Initial order is derived from speed:
 ## Enemy AI
 Deterministic MVP behavior:
 - At or below 30% HP: defend.
-- Otherwise: attack the first living player by peer order.
+- Otherwise: attack a living player using round-robin target selection across the encounter.
 - No group AI or complex decision system.
 
 ## Damage

@@ -51,6 +51,7 @@ var _boat_state: Dictionary = {}
 var _boat_e_was_down: bool = false
 var _boat_last_command: String = ""
 var _boat_last_send_ms: int = 0
+var _boat_navigation_window: Window = null
 var _boat_visuals: Dictionary[int, Node2D] = {}
 
 @onready var camera_2d: Camera2D = $Camera2D
@@ -878,7 +879,7 @@ func _ground_combat_action(action: String) -> void:
 
 func _boat_is_active() -> bool:
 	var state := str(_boat_state.get("state", "docked"))
-	return state == "boarded" or state == "sailing" or state == "arrived"
+	return state == "ready" or state == "navigating" or state == "paused_at_sea" or state == "arrived"
 
 func _on_boat_state(payload: Dictionary) -> void:
 	var boat_v: Variant = payload.get("boat", {})
@@ -900,6 +901,8 @@ func _on_boat_state(payload: Dictionary) -> void:
 	var owner_id: int = int(boat.get("owner_player_id", 0))
 	if player_resource != null and owner_id == player_resource.player_id:
 		_boat_state = boat.duplicate(true)
+		if _boat_navigation_window != null and is_instance_valid(_boat_navigation_window):
+			_update_boat_navigation_window()
 		var pos_v: Variant = payload.get("player_position", null)
 		if pos_v is Vector2:
 			global_position = pos_v
@@ -912,26 +915,209 @@ func process_boat_input() -> void:
 	velocity = Vector2.ZERO
 	var e_down := Input.is_physical_key_pressed(KEY_E)
 	if e_down and not _boat_e_was_down:
-		if str(_boat_state.get("state", "")) == "arrived":
-			Client.request_data(&"boat.disembark", Callable(), {}, InstanceClient.current.name if InstanceClient.current != null else "")
-		elif str(_boat_state.get("state", "")) == "docked":
-			Client.request_data(&"boat.board", Callable(), {}, InstanceClient.current.name if InstanceClient.current != null else "")
+		_open_boat_navigation()
 	_boat_e_was_down = e_down
-	var boat_state := str(_boat_state.get("state", ""))
-	if boat_state != "boarded" and boat_state != "sailing":
-		return
+
+func _open_boat_navigation() -> void:
 	if InstanceClient.current == null:
 		return
-	var command := "stop"
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
-		command = "forward"
-	elif Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
-		command = "reverse"
-	elif Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT):
-		command = "left"
-	elif Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
-		command = "right"
-	if command != _boat_last_command or Time.get_ticks_msec() - _boat_last_send_ms >= 100:
-		_boat_last_command = command
-		_boat_last_send_ms = Time.get_ticks_msec()
+	if _boat_navigation_window != null and is_instance_valid(_boat_navigation_window):
+		_boat_navigation_window.popup_centered()
+		_update_boat_navigation_window()
+		return
+
+	var window := Window.new()
+	_boat_navigation_window = window
+	window.name = "BoatNavigationWindow"
+	window.title = "Navegación marítima"
+	window.size = Vector2i(520, 430)
+	window.close_requested.connect(func() -> void:
+		window.hide()
+	)
+
+	var root := VBoxContainer.new()
+	root.name = "Root"
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 10)
+	window.add_child(root)
+
+	var title := Label.new()
+	title.name = "Title"
+	title.text = "AUTONAV"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	root.add_child(title)
+
+	var status := Label.new()
+	status.name = "Status"
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	root.add_child(status)
+
+	var destinations := VBoxContainer.new()
+	destinations.name = "Destinations"
+	root.add_child(destinations)
+
+	var woodland := Button.new()
+	woodland.name = "Woodland"
+	woodland.text = "GOBLIN WOODLAND"
+	woodland.custom_minimum_size = Vector2(0, 52)
+	woodland.pressed.connect(_boat_start_destination.bind("woodland"))
+	destinations.add_child(woodland)
+
+	var overworld := Button.new()
+	overworld.name = "Overworld"
+	overworld.text = "CASTLE GARDEN"
+	overworld.custom_minimum_size = Vector2(0, 52)
+	overworld.pressed.connect(_boat_start_destination.bind("overworld"))
+	destinations.add_child(overworld)
+
+	var coord_title := Label.new()
+	coord_title.text = "Rumbo manual por coordenadas (mar)"
+	root.add_child(coord_title)
+
+	var coord_row := HBoxContainer.new()
+	coord_row.name = "Coordinates"
+	root.add_child(coord_row)
+
+	var x_edit := LineEdit.new()
+	x_edit.name = "X"
+	x_edit.placeholder_text = "X: -1000..1000"
+	x_edit.text = "0"
+	x_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	coord_row.add_child(x_edit)
+
+	var y_edit := LineEdit.new()
+	y_edit.name = "Y"
+	y_edit.placeholder_text = "Y: -520..520"
+	y_edit.text = "0"
+	y_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	coord_row.add_child(y_edit)
+
+	var coordinate_button := Button.new()
+	coordinate_button.name = "CoordinatesButton"
+	coordinate_button.text = "NAVEGAR A COORDENADAS"
+	coordinate_button.custom_minimum_size = Vector2(0, 48)
+	coordinate_button.pressed.connect(_boat_start_coordinates.bind(x_edit, y_edit))
+	root.add_child(coordinate_button)
+
+	var action_row := HBoxContainer.new()
+	action_row.name = "Actions"
+	root.add_child(action_row)
+
+	var pause := Button.new()
+	pause.name = "Pause"
+	pause.text = "PAUSAR"
+	pause.custom_minimum_size = Vector2(0, 48)
+	pause.pressed.connect(_boat_pause)
+	action_row.add_child(pause)
+
+	var resume := Button.new()
+	resume.name = "Resume"
+	resume.text = "REANUDAR"
+	resume.custom_minimum_size = Vector2(0, 48)
+	resume.pressed.connect(_boat_resume)
+	action_row.add_child(resume)
+
+	var disembark := Button.new()
+	disembark.name = "Disembark"
+	disembark.text = "DESEMBARCAR"
+	disembark.custom_minimum_size = Vector2(0, 48)
+	disembark.pressed.connect(_boat_disembark)
+	action_row.add_child(disembark)
+
+	add_child(window)
+	window.popup_centered()
+	_update_boat_navigation_window()
+
+func _update_boat_navigation_window() -> void:
+	if _boat_navigation_window == null or not is_instance_valid(_boat_navigation_window):
+		return
+	var root := _boat_navigation_window.get_node_or_null("Root") as VBoxContainer
+	if root == null:
+		return
+	var state := str(_boat_state.get("state", "ready"))
+	var destination := str(_boat_state.get("destination_instance", ""))
+	var eta := float(_boat_state.get("eta_seconds", 0.0))
+	var status := root.get_node_or_null("Status") as Label
+	if status != null:
+		match state:
+			"ready":
+				status.text = "Barco listo. Selecciona un destino."
+			"navigating":
+				status.text = "Navegando a %s\\nETA: %s" % [_boat_destination_label(destination), _format_eta(eta)]
+			"paused_at_sea":
+				status.text = "PAUSED_AT_SEA — destino: %s" % _boat_destination_label(destination)
+			"arrived":
+				status.text = "Has llegado a %s. Puedes desembarcar." % _boat_destination_label(destination)
+			_:
+				status.text = "Estado: %s" % state
+	var destinations := root.get_node_or_null("Destinations") as VBoxContainer
+	if destinations != null:
+		var enabled := state == "ready" or state == "paused_at_sea"
+		for child in destinations.get_children():
+			if child is Button:
+				(child as Button).disabled = not enabled
+	var coords := root.get_node_or_null("Coordinates") as HBoxContainer
+	var coordinate_button := root.get_node_or_null("CoordinatesButton") as Button
+	if coords != null:
+		coords.visible = state == "ready" or state == "paused_at_sea"
+	if coordinate_button != null:
+		coordinate_button.visible = state == "ready" or state == "paused_at_sea"
+	var pause := root.get_node_or_null("Actions/Pause") as Button
+	var resume := root.get_node_or_null("Actions/Resume") as Button
+	var disembark := root.get_node_or_null("Actions/Disembark") as Button
+	if pause != null:
+		pause.visible = state == "navigating"
+	if resume != null:
+		resume.visible = state == "paused_at_sea"
+	if disembark != null:
+		disembark.visible = state == "arrived"
+
+func _boat_destination_label(destination: String) -> String:
+	match destination:
+		"woodland": return "Goblin Woodland"
+		"overworld": return "Castle Garden"
+		"coordinates": return "coordenadas"
+		_: return destination if not destination.is_empty() else "—"
+
+func _format_eta(seconds: float) -> String:
+	var total := maxi(0, int(ceil(seconds)))
+	return "%02d:%02d" % [total / 60, total % 60]
+
+func _boat_start_destination(destination: String) -> void:
+	var result := await Client.request_data_await(&"boat.autonav.start", {"destination": destination}, InstanceClient.current.name if InstanceClient.current != null else "")
+	_handle_boat_request_result(result, "No se pudo iniciar la autonavegación.")
+
+func _boat_start_coordinates(x_edit: LineEdit, y_edit: LineEdit) -> void:
+	var x := float(x_edit.text)
+	var y := float(y_edit.text)
+	if absf(x) > 1000.0 or absf(y) > 520.0:
+		Toaster.toast("Coordenadas fuera del océano.")
+		return
+	var result := await Client.request_data_await(&"boat.autonav.start", {"destination": "coordinates", "target_x": x, "target_y": y}, InstanceClient.current.name if InstanceClient.current != null else "")
+	_handle_boat_request_result(result, "No se pudo iniciar la autonavegación.")
+
+func _boat_pause() -> void:
+	var result := await Client.request_data_await(&"boat.autonav.pause", {}, InstanceClient.current.name if InstanceClient.current != null else "")
+	_handle_boat_request_result(result, "No se pudo pausar la navegación.")
+
+func _boat_resume() -> void:
+	var result := await Client.request_data_await(&"boat.autonav.resume", {}, InstanceClient.current.name if InstanceClient.current != null else "")
+	_handle_boat_request_result(result, "No se pudo reanudar la navegación.")
+
+func _boat_disembark() -> void:
+	var result := await Client.request_data_await(&"boat.disembark", {}, InstanceClient.current.name if InstanceClient.current != null else "")
+	_handle_boat_request_result(result, "No se pudo desembarcar.")
+
+func _handle_boat_request_result(result: Array, fallback: String) -> void:
+	if result.size() < 2 or result[1] != OK:
+		Toaster.toast(fallback)
+		return
+	var payload: Dictionary = result[0]
+	if not bool(payload.get("ok", false)):
+		Toaster.toast("Navegación: %s" % str(payload.get("reason", "error")))
+		return
+	if _boat_navigation_window != null and is_instance_valid(_boat_navigation_window):
+		_update_boat_navigation_window()
 		Client.request_data(&"boat.move", Callable(), {"command": command}, InstanceClient.current.name)

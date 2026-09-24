@@ -163,7 +163,25 @@ func on_player_spawned(peer_id: int, player: Player, instance: ServerInstance) -
 	var boat := _get_or_load(player.player_resource.player_id)
 	if boat.is_empty():
 		return
-	if str(boat.get("instance_name", "")) != str(instance.instance_resource.instance_name):
+	var current_instance_name := str(instance.instance_resource.instance_name)
+	var boat_instance_name := str(boat.get("instance_name", ""))
+
+	# The jail instance intentionally reuses the Overworld map. Its BoatWarp
+	# sends the player to sea directly; promote the docked boat to a sailing
+	# state so the arrival is an actual usable boat, not an empty sea map.
+	if current_instance_name == SEA_INSTANCE_NAME 		and boat_instance_name != SEA_INSTANCE_NAME 		and str(boat.get("state", "docked")) == "docked":
+		boat["instance_name"] = SEA_INSTANCE_NAME
+		boat["destination_instance"] = _other_land(
+			WOODLAND_INSTANCE_NAME if boat_instance_name == WOODLAND_INSTANCE_NAME else OVERWORLD_INSTANCE_NAME
+		)
+		boat["x"] = SEA_SPAWN.x
+		boat["y"] = SEA_SPAWN.y
+		boat["heading"] = 0.0 if boat["destination_instance"] == WOODLAND_INSTANCE_NAME else PI
+		boat["state"] = "sailing"
+		world_server.database.store.save_boat(boat)
+		_boats[player.player_resource.player_id] = boat
+
+	if str(boat.get("instance_name", "")) != current_instance_name:
 		return
 	if str(boat.get("state", "")) == "sailing" or str(boat.get("state", "")) == "arrived":
 		var p := Vector2(float(boat.get("x", 0.0)), float(boat.get("y", 0.0)))

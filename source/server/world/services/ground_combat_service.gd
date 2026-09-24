@@ -427,7 +427,25 @@ func _remove_player(battle: Dictionary, peer_id: int, result: String) -> void:
 	_advance_turn(battle)
 
 
+func _cleanup_dead_players(battle: Dictionary) -> void:
+	var dead_peers: Array = []
+	for peer_id in battle["players"].keys():
+		var player: Player = battle["players"][peer_id]
+		if not is_instance_valid(player) or player.is_dead:
+			dead_peers.append(int(peer_id))
+	for peer_id in dead_peers:
+		battle["players"].erase(peer_id)
+		battle["player_defending"].erase(peer_id)
+		_player_encounter.erase(peer_id)
+		_push_lock(peer_id, false)
+		if WorldServer.curr != null:
+			WorldServer.curr.data_push.rpc_id(peer_id, &"ground_combat.end", {
+				"result": "defeat",
+				"enemy_name": "Encuentro"
+			})
+
 func _check_end(battle: Dictionary) -> bool:
+	_cleanup_dead_players(battle)
 	if battle["players"].is_empty():
 		_end_encounter(battle, "cancelled")
 		return true
